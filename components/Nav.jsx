@@ -42,10 +42,52 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
   const soonOn = { affiliate, offers, prompts };
   const isSoon = (l) => l.soonKey && !soonOn[l.soonKey];
   const openCart = () => (cart.items.length ? cart.checkout() : (navStart(), router.push("/tools")));
+  const [bump, setBump] = useState(false);
+
+  useEffect(() => {
+    let t;
+    const onBump = () => {
+      setBump(true);
+      clearTimeout(t);
+      t = setTimeout(() => setBump(false), 650);
+    };
+    window.addEventListener("cart:bump", onBump);
+    return () => { window.removeEventListener("cart:bump", onBump); clearTimeout(t); };
+  }, []);
+
   const cartBtn = (
-    <button onClick={openCart} aria-label={`Basket, ${cart.items.length} items`} className="relative min-w-[44px] min-h-[44px] flex items-center justify-center text-mist hover:text-fg">
-      <ShoppingCart size={20} />
-      {cart.items.length > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brand text-[10px] font-bold flex items-center justify-center">{cart.items.length}</span>}
+    <button data-cart-icon onClick={openCart} aria-label={`Basket, ${cart.items.length} items`} className="relative min-w-[44px] min-h-[44px] flex items-center justify-center text-mist hover:text-fg transition-colors">
+      <motion.span
+        className="inline-flex"
+        animate={bump ? { rotate: [0, -22, 18, -14, 10, -5, 0], scale: [1, 1.3, 0.9, 1.15, 1] } : {}}
+        transition={{ duration: 0.6, ease: "easeInOut" }}
+      >
+        <ShoppingCart size={20} />
+      </motion.span>
+      <AnimatePresence>
+        {cart.items.length > 0 && (
+          <motion.span
+            aria-hidden
+            initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1, y: [0, 6, 0], rotate: [0, -14, 0] }} exit={{ scale: 0, opacity: 0 }}
+            transition={{ opacity: { duration: 0.2 }, scale: { duration: 0.2 }, y: { duration: 1.1, repeat: Infinity, ease: "easeInOut" }, rotate: { duration: 1.1, repeat: Infinity, ease: "easeInOut" } }}
+            className="absolute -bottom-2.5 -left-2 text-lg select-none pointer-events-none drop-shadow-lg"
+          >
+            👆
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {cart.items.length > 0 && (
+          <motion.span
+            key={cart.items.length}
+            initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 500, damping: 25 }}
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brand text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(232,53,43,0.6)]"
+          >
+            {cart.items.length}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </button>
   );
   const [open, setOpen] = useState(false);
@@ -65,10 +107,10 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
   const Soon = () => <span className="text-[9px] font-bold uppercase tracking-wide bg-brand/20 text-brand px-1.5 py-0.5 rounded">Soon</span>;
 
   return (
-    <header style={{ paddingTop: "env(safe-area-inset-top)" }} className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled || path !== "/" ? "bg-ink/85 backdrop-blur-md border-b border-line" : "bg-transparent"}`}>
+    <header style={{ paddingTop: "env(safe-area-inset-top)" }} className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled || path !== "/" ? "bg-ink/85 backdrop-blur-md border-b border-line shadow-lg shadow-black/20" : "bg-transparent"}`}>
       <nav className="container-x flex items-center justify-between h-16">
-        <Link href="/" className="flex items-center gap-2 font-display font-bold text-lg whitespace-nowrap">
-          <Logo src={logo} className="h-8" />
+        <Link href="/" className="group flex items-center gap-2 font-display font-bold text-lg whitespace-nowrap">
+          <Logo src={logo} className="h-8 transition-transform duration-300 group-hover:scale-110" />
           {first} <span className="text-brand">{rest.join(" ")}</span>
         </Link>
 
@@ -77,19 +119,25 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
             l.children ? (
               <DesktopDropdown key={l.label} item={l} active={l.children.some((c) => isActive(c.href))} isSoon={isSoon} Soon={Soon} />
             ) : (
-              <Link key={l.label} href={l.href} className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg whitespace-nowrap transition-colors ${isActive(l.href) ? "bg-brand/15 text-brand" : "text-mist hover:text-fg"}`}>
-                {l.dot ? DOT : <l.icon size={14} className="hidden 2xl:block" />} {l.label}
-                {isSoon(l) && <Soon />}
+              <Link key={l.label} href={l.href} className="group relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg whitespace-nowrap">
+                {isActive(l.href) && (
+                  <motion.span layoutId="navActivePill" transition={{ type: "spring", stiffness: 400, damping: 32 }} className="absolute inset-0 rounded-lg bg-brand/15" />
+                )}
+                <span className={`relative z-10 flex items-center gap-1.5 transition-colors ${isActive(l.href) ? "text-brand" : "text-mist group-hover:text-fg"}`}>
+                  {l.dot ? DOT : <l.icon size={14} className="hidden 2xl:block" />} {l.label}
+                  {isSoon(l) && <Soon />}
+                </span>
               </Link>
             )
           )}
         </div>
 
-        <div className="hidden xl:flex items-center gap-2">
+        <div className="hidden xl:flex items-center gap-3">
           {cartBtn}
           <ThemeToggle />
-          <Link href="/account" className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand hover:bg-brand-dark transition-colors text-sm font-semibold whitespace-nowrap text-white">
-          <User size={15} /> Client Area
+          <div className="w-px h-6 bg-line" aria-hidden />
+          <Link href="/account" className="group flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-brand to-brand-dark hover:shadow-glow transition-all duration-300 hover:-translate-y-0.5 text-sm font-semibold whitespace-nowrap text-white">
+          <User size={15} className="transition-transform duration-300 group-hover:scale-110" /> Client Area
           </Link>
         </div>
 
@@ -101,8 +149,14 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
         </div>
       </nav>
 
-      {open && (
-        <div className="xl:hidden bg-panel border-t border-line px-5 py-4 flex flex-col gap-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            className="xl:hidden overflow-hidden bg-panel border-t border-line"
+          >
+          <div className="px-5 py-4 flex flex-col gap-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
           {links.map((l) =>
             l.children ? (
               <div key={l.label}>
@@ -124,7 +178,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
                 </AnimatePresence>
               </div>
             ) : (
-              <Link key={l.label} href={l.href} onClick={() => setOpen(false)} className="flex items-center gap-3 py-2.5 text-mist hover:text-fg">
+              <Link key={l.label} href={l.href} onClick={() => setOpen(false)} className={`flex items-center gap-3 py-2.5 rounded-lg px-2 -mx-2 transition-colors ${isActive(l.href) ? "text-brand bg-brand/10" : "text-mist hover:text-fg"}`}>
                 {l.dot ? DOT : <l.icon size={16} />} {l.label}
                 {isSoon(l) && <Soon />}
               </Link>
@@ -134,9 +188,13 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
             <span className="text-sm text-mist">Theme</span>
             <ThemeToggle />
           </div>
-          <Link href="/account" onClick={() => setOpen(false)} className="mt-2 px-4 py-2.5 rounded-lg bg-brand text-center font-semibold text-white">Client Area</Link>
-        </div>
-      )}
+          <Link href="/account" onClick={() => setOpen(false)} className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-brand to-brand-dark text-center font-semibold text-white shadow-glow">
+            <User size={15} /> Client Area
+          </Link>
+          </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
@@ -159,10 +217,15 @@ function DesktopDropdown({ item, active, isSoon, Soon }) {
     <div ref={ref} className="relative">
       <button
         type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu"
-        className={`flex items-center gap-1.5 px-2.5 py-2 rounded-lg whitespace-nowrap transition-colors ${active || open ? "bg-brand/15 text-brand" : "text-mist hover:text-fg"}`}
+        className="group relative flex items-center gap-1.5 px-2.5 py-2 rounded-lg whitespace-nowrap"
       >
-        {item.dot ? DOT : <item.icon size={14} className="hidden 2xl:block" />} {item.label}
-        <ChevronDown size={13} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        {(active || open) && (
+          <motion.span layoutId="navActivePill" transition={{ type: "spring", stiffness: 400, damping: 32 }} className="absolute inset-0 rounded-lg bg-brand/15" />
+        )}
+        <span className={`relative z-10 flex items-center gap-1.5 transition-colors ${active || open ? "text-brand" : "text-mist group-hover:text-fg"}`}>
+          {item.dot ? DOT : <item.icon size={14} className="hidden 2xl:block" />} {item.label}
+          <ChevronDown size={13} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+        </span>
       </button>
       <AnimatePresence>
         {open && (

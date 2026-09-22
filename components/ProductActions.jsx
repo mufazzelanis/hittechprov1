@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { ShoppingCart, Check, Zap, Loader2, MessageCircle, Clock } from "lucide-react";
 import { openSoon } from "@/lib/soon";
 import { track } from "@/lib/track";
+import { flyToCart } from "@/lib/flyToCart";
 import { useCart, useCheckout } from "./CheckoutProvider";
 
 export default function ProductActions({ tool, wa, soon, soonLabel }) {
@@ -20,22 +22,36 @@ export default function ProductActions({ tool, wa, soon, soonLabel }) {
         <button type="button" onClick={() => openSoon(tool.name)} className="inline-flex items-center gap-2 rounded-lg border border-amber-500/50 bg-amber-500/15 px-6 py-3 text-sm font-semibold text-amber-300 hover:bg-amber-500/25 transition-colors"><Clock size={16} className="animate-pulse" /> {soonLabel}</button>
       ) : (
       <>
-      <button
-        onClick={() => {
-          if (inCart) return cart.checkout();
-          setBusy(true);
-          setTimeout(() => {
-            cart.add(item);
-            setBusy(false);
-            setPop(true);
-            setTimeout(() => setPop(false), 1500);
-          }, 450);
-        }}
-        className="btn-primary px-6 py-3" disabled={busy} aria-busy={busy}
-      >
-        {busy ? <Loader2 size={16} className="animate-spin" /> : inCart ? <Check size={16} /> : <ShoppingCart size={16} />}
-        {busy ? "Adding..." : inCart ? (pop ? "Added to basket" : "Checkout basket") : "Add to Cart"}
-      </button>
+      <div className="relative inline-block">
+        {!inCart && !busy && (
+          <motion.span
+            aria-hidden
+            className="absolute -top-3 -right-3 text-2xl select-none pointer-events-none drop-shadow-lg z-10"
+            animate={{ y: [0, 8, 0], rotate: [0, -12, 0] }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+          >
+            👆
+          </motion.span>
+        )}
+        <button
+          onClick={(e) => {
+            if (inCart) return cart.checkout();
+            const btnEl = e.currentTarget;
+            setBusy(true);
+            setTimeout(() => {
+              cart.add(item);
+              flyToCart({ from: btnEl, image: item.image });
+              setBusy(false);
+              setPop(true);
+              setTimeout(() => setPop(false), 1500);
+            }, 450);
+          }}
+          className="btn-primary px-6 py-3" disabled={busy} aria-busy={busy}
+        >
+          {busy ? <Loader2 size={16} className="animate-spin" /> : inCart ? <Check size={16} /> : <ShoppingCart size={16} />}
+          {busy ? "Adding..." : inCart ? (pop ? "Added to basket" : "Checkout basket") : "Add to Cart"}
+        </button>
+      </div>
       <button onClick={() => checkout(item)} className="btn-ghost px-6 py-3"><Zap size={16} /> Buy now</button>
       </>
       )}

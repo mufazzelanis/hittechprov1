@@ -7,6 +7,7 @@ import { X, Check, ShoppingCart, Zap, Clock, ArrowRight, ShieldCheck, Sparkles }
 import { useCart, useCheckout } from "./CheckoutProvider";
 import { ToolCover } from "./ToolsGrid";
 import { openSoon } from "@/lib/soon";
+import { flyToCart } from "@/lib/flyToCart";
 
 // Product quick view: opened from any "Read more" (event "htp-tool"). Rises from the bottom on phones, pops up centred on desktop.
 export default function ToolQuickView({ t }) {
@@ -88,16 +89,28 @@ export default function ToolQuickView({ t }) {
                   </button>
                 ) : (
                   <div className="grid grid-cols-2 gap-2.5">
-                    <button
-                      onClick={() => { if (inCart) { close(); cart.checkout(); } else { cart.add(item); setAdded(true); } }}
-                      className={`inline-flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold transition-colors ${inCart ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "border border-line hover:border-mist"}`}
-                    >
-                      <AnimatePresence mode="wait" initial={false}>
-                        <motion.span key={inCart ? "in" : "add"} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }} className="inline-flex items-center gap-2">
-                          {inCart ? <><Check size={16} /> {added ? t.added : t.goBasket}</> : <><ShoppingCart size={16} /> {t.add}</>}
+                    <div className="relative">
+                      {!inCart && (
+                        <motion.span
+                          aria-hidden
+                          className="absolute -top-3 -right-2 text-xl select-none pointer-events-none drop-shadow-lg z-10"
+                          animate={{ y: [0, 7, 0], rotate: [0, -12, 0] }}
+                          transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                          👆
                         </motion.span>
-                      </AnimatePresence>
-                    </button>
+                      )}
+                      <button
+                        onClick={(e) => { if (inCart) { close(); cart.checkout(); } else { flyToCart({ from: e.currentTarget, image: item.image }); cart.add(item); setAdded(true); } }}
+                        className={`w-full inline-flex items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold transition-colors ${inCart ? "bg-emerald-500 hover:bg-emerald-600 text-white" : "border border-line hover:border-mist"}`}
+                      >
+                        <AnimatePresence mode="wait" initial={false}>
+                          <motion.span key={inCart ? "in" : "add"} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }} className="inline-flex items-center gap-2">
+                            {inCart ? <><Check size={16} /> {added ? t.added : t.goBasket}</> : <><ShoppingCart size={16} /> {t.add}</>}
+                          </motion.span>
+                        </AnimatePresence>
+                      </button>
+                    </div>
                     <button onClick={() => { close(); buyNow(item); }} className="btn-primary justify-center !py-3.5"><Zap size={16} /> {t.buy}</button>
                   </div>
                 )}
