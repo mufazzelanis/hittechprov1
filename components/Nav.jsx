@@ -67,18 +67,6 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
       <AnimatePresence>
         {cart.items.length > 0 && (
           <motion.span
-            aria-hidden
-            initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1, y: [0, 6, 0], rotate: [0, -14, 0] }} exit={{ scale: 0, opacity: 0 }}
-            transition={{ opacity: { duration: 0.2 }, scale: { duration: 0.2 }, y: { duration: 1.1, repeat: Infinity, ease: "easeInOut" }, rotate: { duration: 1.1, repeat: Infinity, ease: "easeInOut" } }}
-            className="absolute -bottom-2.5 -left-2 text-lg select-none pointer-events-none drop-shadow-lg"
-          >
-            👆
-          </motion.span>
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
-        {cart.items.length > 0 && (
-          <motion.span
             key={cart.items.length}
             initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0, opacity: 0 }}
             transition={{ type: "spring", stiffness: 500, damping: 25 }}
@@ -109,12 +97,12 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
   return (
     <header style={{ paddingTop: "env(safe-area-inset-top)" }} className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled || path !== "/" ? "bg-ink/85 backdrop-blur-md border-b border-line shadow-lg shadow-black/20" : "bg-transparent"}`}>
       <nav className="container-x flex items-center justify-between h-16">
-        <Link href="/" className="group flex items-center gap-2 font-display font-bold text-lg whitespace-nowrap">
+        <Link href="/" className="group flex items-center gap-2 font-display font-bold text-lg whitespace-nowrap shrink-0">
           <Logo src={logo} className="h-8 transition-transform duration-300 group-hover:scale-110" />
           {first} <span className="text-brand">{rest.join(" ")}</span>
         </Link>
 
-        <div className="hidden xl:flex items-center gap-1 text-sm">
+        <div className="hidden 2xl:flex items-center gap-1 text-sm">
           {links.map((l) =>
             l.children ? (
               <DesktopDropdown key={l.label} item={l} active={l.children.some((c) => isActive(c.href))} isSoon={isSoon} Soon={Soon} />
@@ -132,7 +120,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
           )}
         </div>
 
-        <div className="hidden xl:flex items-center gap-3">
+        <div className="hidden 2xl:flex items-center gap-3">
           {cartBtn}
           <ThemeToggle />
           <div className="w-px h-6 bg-line" aria-hidden />
@@ -141,7 +129,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
           </Link>
         </div>
 
-        <div className="xl:hidden flex items-center gap-1">
+        <div className="2xl:hidden flex items-center gap-1">
           {cartBtn}
         <button onClick={() => setOpen((o) => !o)} aria-label="Toggle menu" aria-expanded={open} className="min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2">
           {open ? <X size={22} /> : <Menu size={22} />}
@@ -154,7 +142,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
           <motion.div
             initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="xl:hidden overflow-hidden bg-panel border-t border-line"
+            className="2xl:hidden overflow-hidden bg-panel border-t border-line"
           >
           <div className="px-5 py-4 flex flex-col gap-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
           {links.map((l) =>
