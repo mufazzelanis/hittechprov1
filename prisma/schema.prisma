@@ -1,0 +1,202 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  DELIVERED
+  REFUNDED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(CUSTOMER)
+  phone     String?
+  refCode   String?  @unique
+  refClicks Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Category {
+  id     String  @id @default(cuid())
+  name   String
+  slug   String  @unique
+  sort   Int     @default(0)
+  active Boolean @default(true)
+  tools  Tool[]
+}
+
+model Tool {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String    @db.Text
+  image       String?   @db.Text
+  price       Int
+  duration    String    @default("30 days")
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  accent      String    @default("#E8352B")
+  featured    Boolean   @default(false)
+  active      Boolean   @default(true)
+  sort        Int       @default(0)
+  createdAt   DateTime  @default(now())
+}
+
+model Bundle {
+  id        String   @id @default(cuid())
+  name      String
+  tagline   String
+  price     Int
+  icon      String   @default("zap")
+  tools     String   @db.Text
+  popular   Boolean  @default(false)
+  active    Boolean  @default(true)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model PackPlan {
+  id        String  @id @default(cuid())
+  name      String
+  tagline   String
+  price     Int
+  icon      String  @default("star")
+  feature   String
+  popular   Boolean @default(false)
+  active    Boolean @default(true)
+  sort      Int     @default(0)
+}
+
+model Review {
+  id      String  @id @default(cuid())
+  name    String
+  text    String  @db.Text
+  rating  Int     @default(5)
+  source  String  @default("facebook")
+  active  Boolean @default(true)
+  sort    Int     @default(0)
+}
+
+model Faq {
+  id       String  @id @default(cuid())
+  question String
+  answer   String  @db.Text
+  active   Boolean @default(true)
+  sort     Int     @default(0)
+}
+
+model Order {
+  id        String      @id @default(cuid())
+  number    Int         @unique @default(autoincrement())
+  itemType  String      @default("tool")
+  itemName  String
+  amount    Int
+  name      String
+  email     String
+  phone     String
+  txnId     String?
+  method    String?
+  userId    String?
+  refCode   String?
+  commission Int     @default(0)
+  note      String?     @db.Text
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String @db.Text
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  type      String   @default("contact")
+  name      String
+  email     String
+  phone     String?
+  message   String?  @db.Text
+  handled   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Prompt {
+  id         String   @id @default(cuid())
+  title      String
+  slug       String   @unique
+  category   String?
+  image      String?  @db.Text
+  accent     String   @default("#E8352B")
+  promptText String   @db.Text
+  tags       String?
+  featured   Boolean  @default(false)
+  active     Boolean  @default(true)
+  sort       Int      @default(0)
+  createdAt  DateTime @default(now())
+}
+
+model Visit {
+  id          String   @id @default(cuid())
+  sessionId   String
+  userId      String?
+  name        String?
+  email       String?
+  phone       String?
+  path        String
+  referrer    String?  @db.Text
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  ip          String?
+  country     String?
+  region      String?
+  city        String?
+  device      String?
+  browser     String?
+  os          String?
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+  @@index([createdAt])
+  @@index([email])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // order | lead | claim | payout
+  title     String
+  body      String?
+  href      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([read, createdAt])
+}
+
+model Payout {
+  id        String   @id @default(cuid())
+  userId    String
+  userName  String
+  userEmail String
+  amount    Int
+  method    String
+  account   String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+}
