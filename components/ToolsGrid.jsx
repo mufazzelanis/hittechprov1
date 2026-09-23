@@ -11,8 +11,8 @@ import { spotMove } from "@/lib/spot";
 import { openTool } from "@/lib/soon";
 import RequestTool from "./RequestTool";
 
-export function ToolCover({ tool, small = false }) {
-  if (tool.image) return <img src={tool.image} alt={tool.name} className="w-full h-full object-cover" loading="lazy" />;
+export function ToolCover({ tool, small = false, position = "center" }) {
+  if (tool.image) return <img src={tool.image} alt={tool.name} className="w-full h-full object-cover" style={{ objectPosition: position }} loading="lazy" />;
   const c = tool.accent || "#E8352B";
   return (
     <div className="relative w-full h-full overflow-hidden flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${c}, #0b0b12 120%)` }}>

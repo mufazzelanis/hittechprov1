@@ -123,6 +123,21 @@ model Order {
   note      String?     @db.Text
   status    OrderStatus @default(PENDING)
   createdAt DateTime    @default(now())
+  events    OrderEvent[]
+}
+
+// Audit trail for one order: every status change (logged automatically) plus admin notes and
+// "delivery details sent" entries (logged explicitly) - shown as a timeline in the order detail drawer.
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type      String // "status" | "note" | "delivery"
+  message   String   @db.Text
+  byName    String?
+  createdAt DateTime @default(now())
+
+  @@index([orderId, createdAt])
 }
 
 model Setting {

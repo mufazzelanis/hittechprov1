@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Search, X, Copy, Check, Sparkles, Wand2 } from "lucide-react";
+import { Search, X, Copy, Check, Sparkles, Wand2, Link2, Star, Hash } from "lucide-react";
 import { spotMove } from "@/lib/spot";
 import { track } from "@/lib/track";
 import { ToolCover } from "./ToolsGrid";
@@ -26,8 +26,10 @@ function Card({ p, t, onOpen, i }) {
       className="spot group text-left rounded-2xl border border-line bg-panel overflow-hidden hover:border-brand/50 transition-colors flex flex-col"
     >
       <div className="p-2 sm:p-3 pb-0">
-        <div className="relative aspect-[16/10] rounded-xl overflow-hidden">
-          <ToolCover tool={{ name: p.title, image: p.image, accent: p.accent }} />
+        {/* Square: admin covers here are almost always portrait/square photos (4x6 or 4x4), not the
+            wide landscape shots Tools covers use - a 16:10 box was cropping straight through faces. */}
+        <div className="relative aspect-square rounded-xl overflow-hidden">
+          <ToolCover tool={{ name: p.title, image: p.image, accent: p.accent }} position="top" />
           <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
           {p.category && <span className="absolute top-2 left-2 rounded-full bg-black/55 backdrop-blur px-2.5 py-1 text-[10px] font-semibold text-white">{p.category}</span>}
           {isNew(p.createdAt) && <span className="absolute top-2 right-2 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold text-white">{t.newTag}</span>}
@@ -49,6 +51,7 @@ function Card({ p, t, onOpen, i }) {
 
 function PromptPopup({ p, t, onClose }) {
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
   const tags = String(p?.tags || "").split(",").map((x) => x.trim()).filter(Boolean);
 
   useEffect(() => {
@@ -59,13 +62,13 @@ function PromptPopup({ p, t, onClose }) {
     return () => { document.removeEventListener("keydown", k); document.body.style.overflow = ""; };
   }, [p, onClose]);
 
-  async function copy() {
+  async function copyText(text, onDone) {
     try {
-      await navigator.clipboard.writeText(p.promptText);
+      await navigator.clipboard.writeText(text);
     } catch {
       // clipboard API unavailable (very old browser / non-HTTPS): fall back to a hidden textarea + execCommand
       const ta = document.createElement("textarea");
-      ta.value = p.promptText;
+      ta.value = text;
       ta.style.position = "fixed";
       ta.style.opacity = "0";
       document.body.appendChild(ta);
@@ -73,9 +76,22 @@ function PromptPopup({ p, t, onClose }) {
       try { document.execCommand("copy"); } catch {}
       document.body.removeChild(ta);
     }
-    track("Lead", { content_name: `prompt-copy: ${p.title}` });
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1800);
+    onDone();
+  }
+
+  function copy() {
+    copyText(p.promptText, () => {
+      track("Lead", { content_name: `prompt-copy: ${p.title}` });
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  }
+
+  function share() {
+    copyText(`${window.location.origin}/prompts?p=${p.slug}`, () => {
+      setShared(true);
+      setTimeout(() => setShared(false), 1800);
+    });
   }
 
   return (
@@ -84,33 +100,49 @@ function PromptPopup({ p, t, onClose }) {
         <motion.div className="fixed inset-0 z-[75] flex items-end sm:items-center justify-center sm:p-6 bg-black/70 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
           <motion.div
             role="dialog" aria-modal="true" aria-label={p.title}
-            initial={{ y: 40, opacity: 0.6 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 30, opacity: 0 }}
+            initial={{ y: 40, scale: 0.97, opacity: 0 }} animate={{ y: 0, scale: 1, opacity: 1 }} exit={{ y: 30, scale: 0.97, opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
             className="relative w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-line bg-panel shadow-[0_-20px_80px_-20px_rgba(232,53,43,0.35)]"
           >
-            <div className="sm:hidden flex justify-center pt-2.5 pb-1"><span className="h-1.5 w-12 rounded-full bg-fg/20" /></div>
-            <button onClick={onClose} aria-label={t.closeBtn} className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center text-white hover:bg-black/70"><X size={18} /></button>
+            <div className="sm:hidden flex justify-center pt-2.5 pb-1 sticky top-0 z-10"><span className="h-1.5 w-12 rounded-full bg-fg/20" /></div>
 
-            <div className="p-3 sm:p-4 pb-0">
-              <div className="relative aspect-[16/8] rounded-2xl overflow-hidden">
-                <ToolCover tool={{ name: p.title, image: p.image, accent: p.accent }} />
-                <span className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
-                {p.category && <span className="absolute bottom-3 left-3 rounded-full bg-black/55 backdrop-blur px-3 py-1 text-[11px] text-white">{p.category}</span>}
+            {/* Poster-style header: the cover fills the top, title/category/tags sit on it, so the
+                photo the admin uploaded is the star of the popup instead of a small thumbnail. */}
+            <div className="relative aspect-square sm:rounded-t-3xl overflow-hidden -mt-2 sm:mt-0">
+              <ToolCover tool={{ name: p.title, image: p.image, accent: p.accent }} position="top" />
+              <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/10" />
+
+              <div className="absolute top-3 left-3 right-14 flex items-center gap-2">
+                {p.category && <span className="rounded-full bg-white/15 backdrop-blur px-3 py-1 text-[11px] font-medium text-white">{p.category}</span>}
+                {p.featured && <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/90 px-2.5 py-1 text-[10px] font-bold text-black"><Star size={10} className="fill-black" /> Featured</span>}
+              </div>
+              <div className="absolute top-3 right-3 flex items-center gap-2">
+                <button type="button" onClick={share} aria-label="Copy link to this prompt" title="Copy link" className="w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center text-white hover:bg-black/70">
+                  {shared ? <Check size={16} className="text-emerald-400" /> : <Link2 size={16} />}
+                </button>
+                <button onClick={onClose} aria-label={t.closeBtn} className="w-9 h-9 rounded-full bg-black/50 backdrop-blur flex items-center justify-center text-white hover:bg-black/70"><X size={18} /></button>
+              </div>
+
+              <div className="absolute bottom-0 inset-x-0 p-5">
+                <h3 className="font-display font-bold text-2xl sm:text-[1.7rem] leading-tight text-white drop-shadow-sm">{p.title}</h3>
               </div>
             </div>
 
-            <div className="px-5 sm:px-6 pt-4 pb-6">
-              <h3 className="font-display font-bold text-xl sm:text-2xl leading-tight">{p.title}</h3>
-
-              <div className="mt-4 rounded-2xl border border-line bg-ink p-4">
-                <p className="text-sm text-fg/90 leading-relaxed whitespace-pre-wrap font-mono">{p.promptText}</p>
+            <div className="px-5 sm:px-6 pt-5 pb-6">
+              <div className="rounded-2xl border border-line bg-ink overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-line/80 bg-panel2/40">
+                  <span className="flex gap-1.5" aria-hidden><span className="w-2.5 h-2.5 rounded-full bg-red-500/70" /><span className="w-2.5 h-2.5 rounded-full bg-amber-500/70" /><span className="w-2.5 h-2.5 rounded-full bg-emerald-500/70" /></span>
+                  <span className="ml-1.5 text-[11px] font-semibold uppercase tracking-wider text-mist">Prompt</span>
+                  <span className="ml-auto text-[10px] text-mist tabular-nums">{p.promptText.length} chars</span>
+                </div>
+                <p className="p-4 text-sm text-fg/90 leading-relaxed whitespace-pre-wrap font-mono max-h-64 overflow-y-auto">{p.promptText}</p>
               </div>
 
               {tags.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-[11px] uppercase tracking-wider text-mist mb-2">{t.useWith}</p>
+                  <p className="text-[11px] uppercase tracking-wider text-mist mb-2 flex items-center gap-1.5"><Hash size={11} /> {t.useWith}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {tags.map((x) => <span key={x} className="rounded-full bg-panel2 px-2.5 py-1 text-[11px] text-mist">{x}</span>)}
+                    {tags.map((x) => <span key={x} className="rounded-full bg-panel2 border border-line px-2.5 py-1 text-[11px] text-mist">{x}</span>)}
                   </div>
                 </div>
               )}

@@ -5,6 +5,7 @@ import { Plus, Search, Pencil, Trash2, X, Loader2, Upload, Check, SlidersHorizon
 import { useSelection, Check3, BulkBar, Modal, ConfirmDelete, downloadCsv, plural } from "./Bulk";
 import { RESOURCES, ICONS } from "@/lib/resources";
 import ManualOrder from "./ManualOrder";
+import OrderDetail from "./OrderDetail";
 
 const STATUS_STYLE = {
   PENDING: "bg-amber-500/15 text-amber-300",
@@ -274,7 +275,10 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
           ))}
       </div>
 
-      {editing && (
+      {editing && name === "orders" && (
+        <OrderDetail order={editing} onClose={() => setEditing(null)} onSaved={load} />
+      )}
+      {editing && name !== "orders" && (
         <EditDrawer
           res={res}
           name={name}
