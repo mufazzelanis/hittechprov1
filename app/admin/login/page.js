@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck } from "lucide-react";
@@ -93,6 +94,7 @@ export default function LoginPage() {
               </button>
             }
           />
+          <Link href="/admin/forgot-password" className="block text-right text-xs text-brand hover:underline -mt-2">Forgot password?</Link>
         </div>
 
         <FormErrorBanner>{err}</FormErrorBanner>

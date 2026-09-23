@@ -60,7 +60,7 @@ export default function TrustPop({ enabled, minSec = 10, maxSec = 30 }) {
   if (!enabled || onCheckout) return null;
 
   return (
-    <div className="fixed left-4 sm:left-5 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] xl:bottom-5 z-30 w-[19rem] max-w-[calc(100vw-2rem)]">
+    <div className="fixed left-4 sm:left-5 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] nav:bottom-5 z-30 w-[19rem] max-w-[calc(100vw-2rem)]">
       <AnimatePresence>
         {visible && data && (
           <motion.div

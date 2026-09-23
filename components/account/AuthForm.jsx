@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Eye, EyeOff, Loader2, Lock, Mail, Phone, User, UserRound } from "lucide-react";
@@ -154,6 +155,7 @@ export default function AuthForm({ initialMode = "login", next = "/account", aff
                   </button>
                 }
               />
+              {!reg && <Link href="/forgot-password" className="block text-right text-xs text-brand hover:underline mt-2">Forgot password?</Link>}
               {reg && password && (
                 <div className="mt-2">
                   <div className="flex gap-1">

@@ -15,7 +15,7 @@ import { getChannels } from "@/lib/channels";
 export default async function SiteShell({ children }) {
   const s = await getSettings();
   return (
-    <div className="max-xl:pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
+    <div className="max-nav:pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
       <RefCapture enabled={s.affiliateOn === "true"} />
       <ScrollProgress />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:bg-brand focus:px-4 focus:py-2 focus:rounded-lg">Skip to content</a>

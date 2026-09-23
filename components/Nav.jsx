@@ -92,17 +92,23 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
   const [first, ...rest] = name.split(" ");
   const isActive = (h) => (h === "/" ? path === "/" : !h.includes("#") && !h.includes("?") && path.startsWith(h));
 
-  const Soon = () => <span className="text-[9px] font-bold uppercase tracking-wide bg-brand/20 text-brand px-1.5 py-0.5 rounded">Soon</span>;
+  // `hover`: stays invisible (but still reserves its space, so nothing shifts) until the link is
+  // hovered - keeps the desktop bar looking clean while still surfacing "Soon" for anyone who lingers.
+  const Soon = ({ hover }) => (
+    <span className={`text-[7px] leading-none font-bold uppercase tracking-wide bg-brand/20 text-brand px-1 py-[3px] rounded transition-opacity duration-200 ${hover ? "opacity-0 group-hover:opacity-100" : ""}`}>
+      Soon
+    </span>
+  );
 
   return (
     <header style={{ paddingTop: "env(safe-area-inset-top)" }} className={`fixed top-0 inset-x-0 z-50 transition-all duration-300 ${scrolled || path !== "/" ? "bg-ink/85 backdrop-blur-md border-b border-line shadow-lg shadow-black/20" : "bg-transparent"}`}>
-      <nav className="container-x flex items-center justify-between h-16">
+      <nav className="container-nav flex items-center justify-between h-16">
         <Link href="/" className="group flex items-center gap-2 font-display font-bold text-lg whitespace-nowrap shrink-0">
           <Logo src={logo} className="h-8 transition-transform duration-300 group-hover:scale-110" />
           {first} <span className="text-brand">{rest.join(" ")}</span>
         </Link>
 
-        <div className="hidden 2xl:flex items-center gap-1 text-sm">
+        <div className="hidden nav:flex items-center gap-1 text-sm">
           {links.map((l) =>
             l.children ? (
               <DesktopDropdown key={l.label} item={l} active={l.children.some((c) => isActive(c.href))} isSoon={isSoon} Soon={Soon} />
@@ -112,15 +118,15 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
                   <motion.span layoutId="navActivePill" transition={{ type: "spring", stiffness: 400, damping: 32 }} className="absolute inset-0 rounded-lg bg-brand/15" />
                 )}
                 <span className={`relative z-10 flex items-center gap-1.5 transition-colors ${isActive(l.href) ? "text-brand" : "text-mist group-hover:text-fg"}`}>
-                  {l.dot ? DOT : <l.icon size={14} className="hidden 2xl:block" />} {l.label}
-                  {isSoon(l) && <Soon />}
+                  {l.dot ? DOT : <l.icon size={14} className="hidden nav:block" />} {l.label}
+                  {isSoon(l) && <Soon hover />}
                 </span>
               </Link>
             )
           )}
         </div>
 
-        <div className="hidden 2xl:flex items-center gap-3">
+        <div className="hidden nav:flex items-center gap-3">
           {cartBtn}
           <ThemeToggle />
           <div className="w-px h-6 bg-line" aria-hidden />
@@ -129,7 +135,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
           </Link>
         </div>
 
-        <div className="2xl:hidden flex items-center gap-1">
+        <div className="nav:hidden flex items-center gap-1">
           {cartBtn}
         <button onClick={() => setOpen((o) => !o)} aria-label="Toggle menu" aria-expanded={open} className="min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2">
           {open ? <X size={22} /> : <Menu size={22} />}
@@ -142,7 +148,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
           <motion.div
             initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="2xl:hidden overflow-hidden bg-panel border-t border-line"
+            className="nav:hidden overflow-hidden bg-panel border-t border-line"
           >
           <div className="px-5 py-4 flex flex-col gap-1 max-h-[calc(100dvh-4rem)] overflow-y-auto">
           {links.map((l) =>
@@ -211,7 +217,7 @@ function DesktopDropdown({ item, active, isSoon, Soon }) {
           <motion.span layoutId="navActivePill" transition={{ type: "spring", stiffness: 400, damping: 32 }} className="absolute inset-0 rounded-lg bg-brand/15" />
         )}
         <span className={`relative z-10 flex items-center gap-1.5 transition-colors ${active || open ? "text-brand" : "text-mist group-hover:text-fg"}`}>
-          {item.dot ? DOT : <item.icon size={14} className="hidden 2xl:block" />} {item.label}
+          {item.dot ? DOT : <item.icon size={14} className="hidden nav:block" />} {item.label}
           <ChevronDown size={13} className={`transition-transform ${open ? "rotate-180" : ""}`} />
         </span>
       </button>

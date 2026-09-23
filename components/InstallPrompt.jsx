@@ -69,7 +69,7 @@ export default function InstallPrompt() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
-          className="fixed z-[60] left-3 right-3 sm:left-auto sm:right-5 sm:w-96 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] xl:bottom-5 rounded-2xl border border-line bg-panel/95 backdrop-blur p-4 shadow-glow"
+          className="fixed z-[60] left-3 right-3 sm:left-auto sm:right-5 sm:w-96 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] nav:bottom-5 rounded-2xl border border-line bg-panel/95 backdrop-blur p-4 shadow-glow"
         >
           <button onClick={dismiss} aria-label="Dismiss" className="absolute top-3 right-3 text-mist hover:text-fg"><X size={16} /></button>
           <div className="flex gap-3">

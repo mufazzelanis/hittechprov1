@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { ImageInput } from "./ResourceManager";
 import PasswordForm from "./PasswordForm";
+import TeamManager from "./TeamManager";
 import BrandLogo from "../BrandLogo";
 import { SETTINGS_TABS } from "@/lib/settingsSchema";
 
@@ -338,6 +339,7 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
       return (
         <div key="sec" className="space-y-5">
           <PasswordForm />
+          <TeamManager />
           <Card title="Backup & restore" hint="Download every setting on this page as a file, or load one back. Loading only fills the form; nothing changes until you press Save. The file includes private keys, so keep it safe.">
             <div className="flex flex-wrap gap-3">
               <button type="button" onClick={exportJson} className="btn-ghost"><Download size={15} /> Export settings</button>

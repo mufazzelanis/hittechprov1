@@ -85,6 +85,17 @@ h1, h2, h3, h4, .font-display {
   padding-right: 1.25rem;
 }
 
+/* Wider than .container-x: the header's full desktop menu (logo + 7 links + cart/theme/CTA) measures
+   ~1174px on its own, so it needs more room than the 1200px reading-width container the rest of the
+   page uses - this keeps the nav row comfortable instead of razor-tight against .container-x's cap. */
+.container-nav {
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
 @layer components {
   .input {
     @apply w-full rounded-lg bg-ink border border-line px-3 py-2.5 text-sm text-fg placeholder:text-mist/60 outline-none transition-colors focus:border-brand;
@@ -184,7 +195,7 @@ img, video, svg { max-width: 100%; }
 
 /* Very small phones (iPhone SE / 320-360px) */
 @media (max-width: 380px) {
-  .container-x { padding-left: 1rem; padding-right: 1rem; }
+  .container-x, .container-nav { padding-left: 1rem; padding-right: 1rem; }
 }
 
 /* horizontal chip rows: scrollable but no visible bar */

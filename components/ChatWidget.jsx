@@ -95,7 +95,7 @@ export default function ChatWidget({ channels = [], t = {} }) {
   };
 
   return (
-    <div className="fixed right-4 sm:right-5 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] xl:bottom-5 z-40 flex flex-col items-end gap-3">
+    <div className="fixed right-4 sm:right-5 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] nav:bottom-5 z-40 flex flex-col items-end gap-3">
       <AnimatePresence>
         {open && !single && (
           <motion.div

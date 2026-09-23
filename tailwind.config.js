@@ -11,6 +11,13 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // The header's full desktop menu needs ~1174px of its own content plus breathing room before it
+      // can show without wrapping - narrower than that (down to `lg`/`xl`) it wraps or overlaps, and the
+      // stock `xl`/`2xl` don't line up with where the mobile bottom tab bar hides, leaving a dead zone
+      // with neither nav visible. `nav` is the single, deliberately-chosen breakpoint both use.
+      screens: {
+        nav: "1300px",
+      },
       colors: {
         ink: v("--ink"),
         panel: v("--panel"),

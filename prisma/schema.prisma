@@ -29,6 +29,11 @@ model User {
   phone     String?
   refCode   String?  @unique
   refClicks Int      @default(0)
+  // "Forgot password" - a hashed, single-use, time-limited token (never the raw token: a DB read alone
+  // must not be enough to take over an account). Works for both customers and admins, since both are
+  // rows in this same table.
+  resetTokenHash   String?
+  resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
 }
 

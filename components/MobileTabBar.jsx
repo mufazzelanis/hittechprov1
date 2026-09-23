@@ -22,7 +22,7 @@ export default function MobileTabBar() {
   return (
     <nav
       aria-label="Main"
-      className="xl:hidden fixed bottom-0 inset-x-0 z-50 border-t border-line bg-ink/92 backdrop-blur-md"
+      className="nav:hidden fixed bottom-0 inset-x-0 z-50 border-t border-line bg-ink/92 backdrop-blur-md"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="grid grid-cols-5 max-w-xl mx-auto">
