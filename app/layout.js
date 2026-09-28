@@ -1,5 +1,6 @@
 import "./globals.css";
 import { ThemeProvider, NO_FLASH_SCRIPT } from "@/lib/theme";
+import { LangProvider } from "@/components/LangProvider";
 import CartProvider from "@/components/CheckoutProvider";
 import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -90,14 +91,16 @@ export default async function RootLayout({ children }) {
       </head>
       <body className="bg-ink text-fg antialiased" suppressHydrationWarning>
         <ThemeProvider>
-          <LoadingSystem />
-          <VisitTracker />
-          <JsonLd data={graph} />
-          <CartProvider>{children}</CartProvider>
-          <FacebookPixel pixelId={s.fbPixelId} />
-          <GoogleAnalytics id={s.gaId} />
-          <PWARegister />
-          <InstallPrompt />
+          <LangProvider>
+            <LoadingSystem />
+            <VisitTracker />
+            <JsonLd data={graph} />
+            <CartProvider>{children}</CartProvider>
+            <FacebookPixel pixelId={s.fbPixelId} />
+            <GoogleAnalytics id={s.gaId} />
+            <PWARegister />
+            <InstallPrompt />
+          </LangProvider>
         </ThemeProvider>
       </body>
     </html>

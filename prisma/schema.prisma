@@ -145,6 +145,20 @@ model Setting {
   value String @db.Text
 }
 
+// Auto-translate cache: every English string translated once (client-side "EN/BN" toggle) is stored here
+// keyed by a hash of the source text, so the same sentence is never sent to the translation service
+// twice - the very first visitor to see a given piece of text in Bangla "warms" it for everyone after.
+model Translation {
+  id        String   @id @default(cuid())
+  hash      String
+  lang      String
+  source    String   @db.Text
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@unique([hash, lang])
+}
+
 model Lead {
   id        String   @id @default(cuid())
   type      String   @default("contact")

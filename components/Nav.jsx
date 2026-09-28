@@ -9,6 +9,7 @@ import { navStart } from "./LoadingSystem";
 import Logo from "./Logo";
 import { Menu, X, Home, Wrench, Package, Users, Clock, User, Flame, ShoppingCart, Gift, Wand2, ChevronDown } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import LangToggle from "./LangToggle";
 
 const DOT = (
   <span className="relative flex w-3 h-3 mx-[2px]" aria-hidden>
@@ -128,6 +129,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
 
         <div className="hidden nav:flex items-center gap-3">
           {cartBtn}
+          <LangToggle />
           <ThemeToggle />
           <div className="w-px h-6 bg-line" aria-hidden />
           <Link href="/account" className="group flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-brand to-brand-dark hover:shadow-glow transition-all duration-300 hover:-translate-y-0.5 text-sm font-semibold whitespace-nowrap text-white">
@@ -182,6 +184,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
             <span className="text-sm text-mist">Theme</span>
             <ThemeToggle />
           </div>
+          <LangToggle variant="row" className="mt-2" />
           <Link href="/account" onClick={() => setOpen(false)} className="mt-2 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-brand to-brand-dark text-center font-semibold text-white shadow-glow">
             <User size={15} /> Client Area
           </Link>
