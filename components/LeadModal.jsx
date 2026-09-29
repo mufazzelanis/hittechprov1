@@ -12,6 +12,7 @@ const COPY = {
   "custom-pack": { title: "Quote for a custom pack", ph: "List the tools you need", cta: "Get a quote" },
   "offer-notify": { title: "Get notified about Free Offers", ph: "Anything you would like to see? (optional)", cta: "Notify me" },
   "prompt-notify": { title: "Get notified about the AI Prompt Vault", ph: "Which AI tool do you use most? (optional)", cta: "Notify me" },
+  "smm-notify": { title: "Get notified about the SMM Panel", ph: "Which platform do you need most? (optional)", cta: "Notify me" },
   contact: { title: "Contact us", ph: "How can we help?", cta: "Send" },
 };
 

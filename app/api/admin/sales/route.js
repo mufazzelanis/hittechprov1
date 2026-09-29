@@ -5,7 +5,7 @@ import { dhakaDay, dhakaStart, addDays, validDay, daysBetween } from "@/lib/dhak
 
 export const dynamic = "force-dynamic";
 
-const ALL = ["PENDING", "PAID", "DELIVERED", "REFUNDED", "CANCELLED", "REJECTED"];
+const ALL = ["PENDING", "PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED", "REFUNDED", "CANCELLED", "REJECTED"];
 const sum = (rows) => rows.reduce((n, o) => n + o.amount, 0);
 const group = (rows, keyFn) => {
   const m = new Map();
@@ -23,8 +23,8 @@ export async function GET(req) {
   if (from > to) [from, to] = [to, from];
   if (daysBetween(from, to) > 731) from = addDays(to, -730);
   const days = daysBetween(from, to);
-  const statuses = (u.get("status") || "PAID,DELIVERED").split(",").filter((s) => ALL.includes(s));
-  const want = statuses.length ? statuses : ["PAID", "DELIVERED"];
+  const statuses = (u.get("status") || "PAID,IN_PROGRESS,COMPLETED,DELIVERED").split(",").filter((s) => ALL.includes(s));
+  const want = statuses.length ? statuses : ["PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED"];
 
   const start = dhakaStart(from), end = dhakaStart(addDays(to, 1));
   const prevFrom = addDays(from, -days), prevStart = dhakaStart(prevFrom);

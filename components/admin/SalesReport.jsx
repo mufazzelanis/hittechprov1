@@ -8,7 +8,7 @@ import { buildXlsx } from "@/lib/xlsx";
 import { downloadCsv } from "./Bulk";
 
 const STATUS = [
-  ["PAID", "Paid"], ["DELIVERED", "Delivered"], ["PENDING", "Pending"], ["REFUNDED", "Refunded"], ["CANCELLED", "Cancelled"], ["REJECTED", "Rejected"],
+  ["PAID", "Paid"], ["IN_PROGRESS", "In progress"], ["COMPLETED", "Completed"], ["DELIVERED", "Delivered"], ["PENDING", "Pending"], ["REFUNDED", "Refunded"], ["CANCELLED", "Cancelled"], ["REJECTED", "Rejected"],
 ];
 const money = (n) => "৳" + Math.round(n || 0).toLocaleString("en-US");
 const fmtDay = (s, o = { weekday: "short", day: "numeric", month: "short", year: "numeric" }) => new Date(s + "T00:00:00Z").toLocaleDateString("en-GB", { timeZone: "UTC", ...o });
@@ -90,7 +90,7 @@ export default function SalesReport({ initialPreset = "" }) {
   const [preset, setPreset] = useState(start[0]);
   const [from, setFrom] = useState(start[2]);
   const [to, setTo] = useState(start[3]);
-  const [statuses, setStatuses] = useState(["PAID", "DELIVERED"]);
+  const [statuses, setStatuses] = useState(["PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED"]);
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("daily");

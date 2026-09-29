@@ -1,16 +1,17 @@
 import Link from "next/link";
-import { Rocket, Gift, Coins, Repeat, Zap, Bell, ArrowUpRight, Store, Tag, Sparkles, BadgeCheck, Wand2, MessageSquareText, Image as ImageIcon } from "lucide-react";
+import { Rocket, Gift, Coins, Repeat, Zap, Bell, ArrowUpRight, Store, Tag, Sparkles, BadgeCheck, Wand2, MessageSquareText, Image as ImageIcon, Share2, TrendingUp, Rabbit } from "lucide-react";
 import Reveal from "./Reveal";
 import RichText from "./RichText";
 import LeadButton from "./LeadModal";
 import { parseShops } from "@/lib/shops";
 
 // "Coming soon" page shown while a section is switched off in Admin.
-//   variant "affiliate": Admin -> Affiliates      variant "offers": Admin -> Free Offers      variant "prompts": Admin -> AI Prompt Vault
+//   variant "affiliate": Admin -> Affiliates      variant "offers": Admin -> Free Offers      variant "prompts": Admin -> AI Prompt Vault      variant "smm": Admin -> SMM Panel
 const VARIANTS = {
   affiliate: { p: "affSoon", Icon: Rocket, lead: "affiliate", points: [Coins, Repeat, Zap] },
   offers: { p: "offSoon", Icon: Gift, lead: "offer-notify", points: [Tag, Sparkles, BadgeCheck] },
   prompts: { p: "pvSoon", Icon: Wand2, lead: "prompt-notify", points: [MessageSquareText, ImageIcon, Sparkles] },
+  smm: { p: "smmSoon", Icon: Share2, lead: "smm-notify", points: [TrendingUp, Tag, Rabbit] },
 };
 
 export default function ComingSoon({ s, variant = "affiliate" }) {

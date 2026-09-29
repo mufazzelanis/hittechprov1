@@ -5,6 +5,7 @@ import { getUserId } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
 import { getPaymentOptions } from "@/lib/payments";
 import { getChannels } from "@/lib/channels";
+import { walletBalance } from "@/lib/wallet";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Checkout — HiT Tech Pro", robots: { index: false } };
@@ -13,6 +14,7 @@ export default async function CheckoutPage() {
   const s = await getSettings();
   const uid = getUserId();
   const user = uid ? await prisma.user.findUnique({ where: { id: uid }, select: { name: true, email: true, phone: true } }) : null;
+  const wallet = uid ? await walletBalance(uid) : 0;
 
   return (
     <SiteShell>
@@ -21,7 +23,9 @@ export default async function CheckoutPage() {
         <p className="text-mist text-sm mb-8">{s.checkoutSub}</p>
         <CheckoutClient
           options={getPaymentOptions(s)}
+          usd={{ rate: parseFloat(s.usdRate) || 0, currency: s.usdCurrency || "USDT" }}
           user={user}
+          wallet={wallet}
           wa={{ help: s.waHelpMsg, order: s.waOrderMsg, orderBtn: s.waOrderBtn, note: s.waOrderNote }}
           contact={{ email: s.contactEmail, channels: getChannels(s).filter((c) => c.key !== "email") }}
         />

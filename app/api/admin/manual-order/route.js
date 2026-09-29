@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 const clip = (v, n) => String(v ?? "").trim().slice(0, n);
 const fail = (error, status = 400) => NextResponse.json({ error }, { status });
-const STATUSES = ["PENDING", "PAID", "DELIVERED", "REFUNDED", "CANCELLED"];
+const STATUSES = ["PENDING", "PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED", "REFUNDED", "CANCELLED"];
 
 // Admin-only: record an order taken by phone / chat. Stored with itemType "manual" so it can be told apart.
 export async function POST(req) {

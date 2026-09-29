@@ -3,17 +3,30 @@
 import { useEffect, useState } from "react";
 import {
   X, Copy, Check, Mail, Phone, MessageCircle, Loader2, Send, StickyNote, ArrowRightLeft,
-  PackageCheck, Clock, User, ShoppingBag, ExternalLink,
+  PackageCheck, Clock, User, ShoppingBag, ExternalLink, Share2, RefreshCcw, Rocket, Link2,
 } from "lucide-react";
+
+const SMM_STATUS_STYLE = {
+  Pending: "bg-amber-500/15 text-amber-300",
+  "In progress": "bg-sky-500/15 text-sky-300",
+  Processing: "bg-sky-500/15 text-sky-300",
+  Completed: "bg-emerald-500/15 text-emerald-300",
+  Partial: "bg-orange-500/15 text-orange-300",
+  Canceled: "bg-zinc-500/20 text-zinc-300",
+  Cancelled: "bg-zinc-500/20 text-zinc-300",
+  "Not sent": "bg-zinc-500/20 text-zinc-300",
+};
 
 const STATUS_STYLE = {
   PENDING: "bg-amber-500/15 text-amber-300",
   PAID: "bg-sky-500/15 text-sky-300",
+  IN_PROGRESS: "bg-indigo-500/15 text-indigo-300",
+  COMPLETED: "bg-teal-500/15 text-teal-300",
   DELIVERED: "bg-emerald-500/15 text-emerald-300",
   REFUNDED: "bg-purple-500/15 text-purple-300",
   CANCELLED: "bg-zinc-500/20 text-zinc-300",
 };
-const STATUSES = ["PENDING", "PAID", "DELIVERED", "REFUNDED", "CANCELLED"];
+const STATUSES = ["PENDING", "PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED", "REFUNDED", "CANCELLED"];
 const EVENT_ICON = { status: ArrowRightLeft, note: StickyNote, delivery: PackageCheck };
 
 const fmtDate = (d) => new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -67,6 +80,9 @@ export default function OrderDetail({ order, onClose, onSaved }) {
   const [deliverBusy, setDeliverBusy] = useState(false);
   const [deliverDone, setDeliverDone] = useState(false);
   const [err, setErr] = useState("");
+  const [smm, setSmm] = useState(order.smmOrder || null);
+  const [smmBusy, setSmmBusy] = useState(false);
+  const [smmErr, setSmmErr] = useState("");
 
   const loadEvents = () => fetch(`/api/admin/orders/${order.id}/events`).then((r) => r.json()).then((j) => setEvents(j.rows || []));
   useEffect(() => { loadEvents(); }, [order.id]);
@@ -103,6 +119,28 @@ export default function OrderDetail({ order, onClose, onSaved }) {
     onSaved?.();
   }
 
+  async function sendToProvider() {
+    setSmmBusy(true);
+    setSmmErr("");
+    const r = await fetch(`/api/admin/orders/${order.id}/smm-send`, { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    setSmmBusy(false);
+    if (!r.ok) return setSmmErr(j.error || "Could not send to SMMIU");
+    setSmm((v) => ({ ...v, providerOrderId: j.providerOrderId, providerStatus: "Pending" }));
+    loadEvents();
+  }
+
+  async function syncStatus() {
+    setSmmBusy(true);
+    setSmmErr("");
+    const r = await fetch(`/api/admin/orders/${order.id}/smm-sync`, { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    setSmmBusy(false);
+    if (!r.ok) return setSmmErr(j.error || "Could not sync status");
+    setSmm(j.smmOrder);
+    if (j.orderStatus && j.orderStatus !== status) { setStatus(j.orderStatus); loadEvents(); onSaved?.(); }
+  }
+
   const wa = digits(order.phone) ? `https://wa.me/${digits(order.phone)}` : null;
 
   return (
@@ -125,7 +163,7 @@ export default function OrderDetail({ order, onClose, onSaved }) {
               value={status} disabled={statusBusy} onChange={(e) => changeStatus(e.target.value)}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold border-0 outline-none cursor-pointer ${STATUS_STYLE[status]}`}
             >
-              {STATUSES.map((s) => <option key={s} value={s} className="bg-panel text-fg">{s}</option>)}
+              {STATUSES.map((s) => <option key={s} value={s} className="bg-panel text-fg">{s.split("_").join(" ")}</option>)}
             </select>
             {statusBusy && <Loader2 size={15} className="animate-spin text-mist" />}
           </div>
@@ -163,6 +201,36 @@ export default function OrderDetail({ order, onClose, onSaved }) {
               <Row label="Placed" value={fmtDate(order.createdAt)} />
             </div>
           </section>
+
+          {/* SMM fulfillment */}
+          {smm && (
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2 flex items-center gap-1.5"><Share2 size={12} /> SMM Service</p>
+              <div className="rounded-xl border border-line px-4">
+                <Row label="Service" value={smm.service?.name} />
+                <Row label="Quantity" value={smm.quantity?.toLocaleString()} />
+                <Row label="Link" value={smm.link} copy action={<a href={smm.link} target="_blank" rel="noreferrer" className="p-1.5 text-mist hover:text-brand"><Link2 size={13} /></a>} />
+                <Row label="Provider order #" value={smm.providerOrderId} copy />
+                <Row label="Provider status" value={<span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SMM_STATUS_STYLE[smm.providerStatus] || "bg-panel2 text-mist"}`}>{smm.providerStatus}</span>} />
+                <Row label="Start count" value={smm.startCount?.toLocaleString()} />
+                <Row label="Remaining" value={smm.remains?.toLocaleString()} />
+                <Row label="Last synced" value={smm.lastSyncedAt ? timeAgo(smm.lastSyncedAt) : null} />
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                {!smm.providerOrderId ? (
+                  <button type="button" disabled={smmBusy} onClick={sendToProvider} className="btn-primary !py-2 !px-4 text-xs">
+                    {smmBusy ? <Loader2 size={13} className="animate-spin" /> : <Rocket size={13} />} Send to SMMIU
+                  </button>
+                ) : (
+                  <button type="button" disabled={smmBusy} onClick={syncStatus} className="btn-ghost !py-2 !px-4 text-xs">
+                    {smmBusy ? <Loader2 size={13} className="animate-spin" /> : <RefreshCcw size={13} />} Sync status
+                  </button>
+                )}
+                {smmErr && <p className="text-xs text-red-400">{smmErr}</p>}
+              </div>
+              {!smm.providerOrderId && <p className="text-[11px] text-mist mt-2">Only send this once payment is confirmed (status PAID or later) - it spends real balance on your SMMIU account.</p>}
+            </section>
+          )}
 
           {order.note && (
             <section>

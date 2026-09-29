@@ -10,10 +10,13 @@ import OrderDetail from "./OrderDetail";
 const STATUS_STYLE = {
   PENDING: "bg-amber-500/15 text-amber-300",
   PAID: "bg-sky-500/15 text-sky-300",
+  IN_PROGRESS: "bg-indigo-500/15 text-indigo-300",
+  COMPLETED: "bg-teal-500/15 text-teal-300",
   DELIVERED: "bg-emerald-500/15 text-emerald-300",
   REFUNDED: "bg-purple-500/15 text-purple-300",
   CANCELLED: "bg-zinc-500/20 text-zinc-300",
   REJECTED: "bg-red-500/15 text-red-300",
+  APPROVED: "bg-emerald-500/15 text-emerald-300",
 };
 
 const fmtDate = (d) =>
@@ -147,7 +150,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
             className={`rounded-full px-2.5 py-1 text-xs font-semibold border-0 outline-none cursor-pointer ${STATUS_STYLE[v]}`}
           >
             {f.options.map((o) => (
-              <option key={o} value={o} className="bg-panel text-fg">{o}</option>
+              <option key={o} value={o} className="bg-panel text-fg">{o.split("_").join(" ")}</option>
             ))}
           </select>
         ) : null;

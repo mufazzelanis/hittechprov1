@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, X, ArrowUp, Search, ArrowUpRight } from "lucide-react";
+import { MessageSquare, X, ArrowUp, Search, ArrowUpRight, Share2 } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import { withText } from "@/lib/wa";
 import { track } from "@/lib/track";
@@ -141,7 +141,12 @@ export default function ChatWidget({ channels = [], t = {} }) {
                 </motion.li>
               ))}
             </ul>
-            <a href="/tools" className="mt-3 flex items-center justify-center gap-2 rounded-full bg-panel2 py-2 text-xs text-mist hover:text-fg">
+            {t.smm && (
+              <a href="/smm-panel" onClick={() => track("Contact", { content_name: "chat-smm" })} className="mt-3.5 flex items-center justify-center gap-2 rounded-full border border-brand/40 bg-brand/10 py-2.5 text-xs font-semibold text-brand hover:bg-brand/15 hover:border-brand/60 transition-colors">
+                <Share2 size={13} /> {t.smm}
+              </a>
+            )}
+            <a href="/tools" className="mt-2 flex items-center justify-center gap-2 rounded-full bg-panel2 py-2 text-xs text-mist hover:text-fg">
               <Search size={13} /> {t.browse}
             </a>
           </motion.div>

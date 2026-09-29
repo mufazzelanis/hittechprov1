@@ -11,6 +11,7 @@ import PasswordForm from "./PasswordForm";
 import TeamManager from "./TeamManager";
 import BrandLogo from "../BrandLogo";
 import { SETTINGS_TABS } from "@/lib/settingsSchema";
+import { parseOff } from "@/lib/payments";
 
 /* ------------------------------------------------------------------ schema */
 // A block is either a group of plain fields or a custom editor. Every key listed here is saved through /api/admin/settings.
@@ -73,7 +74,7 @@ function Field({ f, v, set, defaults, dirty }) {
         <button type="button" onClick={() => setShow((s) => !s)} aria-label={show ? "Hide" : "Show"} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-mist hover:text-fg">{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>
       </div>
     )
-    : <input type={f.type === "number" ? "number" : "text"} min={f.type === "number" ? 0 : undefined} className={`input ${off ? "opacity-50" : ""}`} value={val} placeholder={f.placeholder} onChange={(e) => set(f.key, e.target.value)} />;
+    : <input type={f.type === "number" ? "number" : "text"} min={f.type === "number" ? 0 : undefined} step={f.step} className={`input ${off ? "opacity-50" : ""}`} value={val} placeholder={f.placeholder} onChange={(e) => set(f.key, e.target.value)} />;
 
   return (
     <div id={`f-${f.key}`} className={f.type === "textarea" || f.type === "image" ? "sm:col-span-2" : ""}>
@@ -102,17 +103,18 @@ function Field({ f, v, set, defaults, dirty }) {
 /* ------------------------------------------------------ custom: payments */
 const clean = (s) => String(s || "").replace(/[|\r\n]+/g, " ").trim();
 let rid = 0;
-function parsePayments(options, logosJson) {
+function parsePayments(options, logosJson, offJson) {
   let logos = {};
   try { logos = JSON.parse(logosJson || "{}") || {}; } catch {}
+  const off = parseOff(offJson);
   return String(options || "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
     const [name = "", desc = "", ...rest] = l.split("|");
-    return { id: ++rid, name: name.trim(), desc: desc.trim(), ins: rest.join("|").trim(), logo: logos[name.trim()] || "" };
+    return { id: ++rid, name: name.trim(), desc: desc.trim(), ins: rest.join("|").trim(), logo: logos[name.trim()] || "", on: !off.has(name.trim()) };
   });
 }
 
 function PaymentsEditor({ v, set }) {
-  const [rows, setRows] = useState(() => parsePayments(v.paymentOptions, v.paymentLogos));
+  const [rows, setRows] = useState(() => parsePayments(v.paymentOptions, v.paymentLogos, v.paymentOff));
   const push = (next) => {
     setRows(next);
     const named = next.filter((r) => clean(r.name));
@@ -120,16 +122,28 @@ function PaymentsEditor({ v, set }) {
     const logos = {};
     for (const r of named) if (r.logo) logos[clean(r.name)] = r.logo;
     set("paymentLogos", JSON.stringify(logos));
+    set("paymentOff", JSON.stringify(named.filter((r) => !r.on).map((r) => clean(r.name))));
   };
+  const activeCount = rows.filter((r) => clean(r.name) && r.on).length;
   const upd = (id, patch) => push(rows.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const move = (i, d) => { const n = [...rows]; const j = i + d; if (j < 0 || j >= n.length) return; [n[i], n[j]] = [n[j], n[i]]; push(n); };
 
   return (
-    <Card title="Payment methods" hint="Each method shows in checkout and in the footer 'Pay with' strip. Add a logo so customers recognise it; without a logo the name is shown.">
+    <Card title="Payment methods" hint="Each active method shows in checkout and in the footer 'Pay with' strip. Switch a method off to hide it from customers without deleting its details - switch it back on any time. Add a logo so customers recognise it; without a logo the name is shown.">
       <div className="space-y-3">
+        {rows.length > 0 && (
+          <p className="text-xs text-mist"><b className={activeCount ? "text-emerald-400" : "text-red-400"}>{activeCount}</b> of {rows.filter((r) => clean(r.name)).length} methods active at checkout</p>
+        )}
         <AnimatePresence initial={false}>
           {rows.map((r, i) => (
-            <motion.div key={r.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} className="rounded-xl border border-line bg-panel2/30 p-4">
+            <motion.div key={r.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} className={`rounded-xl border p-4 transition-colors ${r.on ? "border-line bg-panel2/30" : "border-dashed border-line bg-panel2/10"}`}>
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${r.on ? "bg-emerald-500/15 text-emerald-400" : "bg-panel2 text-mist"}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${r.on ? "bg-emerald-400" : "bg-mist"}`} />{r.on ? "Shown at checkout" : "Hidden from customers"}
+                </span>
+                <Switch on={r.on} onChange={(x) => upd(r.id, { on: x })} label={`Show ${clean(r.name) || "this method"} at checkout`} />
+              </div>
+              <div className={`transition-opacity ${r.on ? "" : "opacity-55"}`}>
               <div className="flex items-center gap-3">
                 <span className="inline-flex h-10 min-w-[60px] items-center justify-center rounded-md bg-white px-2.5 text-[11px] font-bold text-[#1c1c28]">
                   {r.logo ? <img src={r.logo} alt="" className="h-6 w-auto max-w-[84px] object-contain" /> : clean(r.name) || "Logo"}
@@ -146,11 +160,13 @@ function PaymentsEditor({ v, set }) {
                 <div className="sm:col-span-2"><textarea rows={2} className="input" placeholder="Instructions shown when the customer picks this method (number, account, steps)" value={r.ins} onChange={(e) => upd(r.id, { ins: e.target.value })} /></div>
                 <div className="sm:col-span-2"><ImageInput value={r.logo} onChange={(u) => upd(r.id, { logo: u })} /></div>
               </div>
+              </div>
             </motion.div>
           ))}
         </AnimatePresence>
         {rows.length === 0 && <p className="text-sm text-amber-300 flex items-center gap-2"><AlertCircle size={15} /> No payment methods yet: customers cannot check out.</p>}
-        <button type="button" onClick={() => push([...rows, { id: ++rid, name: "", desc: "", ins: "", logo: "" }])} className="btn-ghost"><Plus size={15} /> Add payment method</button>
+        {rows.length > 0 && activeCount === 0 && <p className="text-sm text-red-400 flex items-center gap-2"><AlertCircle size={15} /> All methods are switched off: customers cannot check out.</p>}
+        <button type="button" onClick={() => push([...rows, { id: ++rid, name: "", desc: "", ins: "", logo: "", on: true }])} className="btn-ghost"><Plus size={15} /> Add payment method</button>
       </div>
     </Card>
   );

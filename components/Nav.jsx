@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCart } from "./CheckoutProvider";
 import { navStart } from "./LoadingSystem";
 import Logo from "./Logo";
-import { Menu, X, Home, Wrench, Package, Users, Clock, User, Flame, ShoppingCart, Gift, Wand2, ChevronDown } from "lucide-react";
+import { Menu, X, Home, Wrench, Package, Users, Clock, User, Flame, ShoppingCart, Gift, Wand2, ChevronDown, Share2 } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
 
@@ -28,6 +28,7 @@ const ALL_LINKS = [
     children: [
       { label: "Exclusive Deals", href: "/tools?cat=Personal", icon: Flame, dot: true, desc: "Personal tools, not shared" },
       { label: "Prompt Vault", href: "/prompts", icon: Wand2, soonKey: "prompts", desc: "AI prompts for ChatGPT, Midjourney" },
+      { label: "SMM Service", href: "/smm-panel", icon: Share2, soonKey: "smm", desc: "Followers, likes & views" },
     ],
   },
   { label: "Free Offers", href: "/free-offers", icon: Gift, soonKey: "offers" },
@@ -35,12 +36,12 @@ const ALL_LINKS = [
   { label: "Tool Limits", href: "/limits", icon: Clock },
 ];
 
-export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true, offers = true, prompts = true }) {
+export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true, offers = true, prompts = true, smm = true }) {
   const links = ALL_LINKS;
   const path = usePathname();
   const router = useRouter();
   const cart = useCart();
-  const soonOn = { affiliate, offers, prompts };
+  const soonOn = { affiliate, offers, prompts, smm };
   const isSoon = (l) => l.soonKey && !soonOn[l.soonKey];
   const openCart = () => (cart.items.length ? cart.checkout() : (navStart(), router.push("/tools")));
   const [bump, setBump] = useState(false);

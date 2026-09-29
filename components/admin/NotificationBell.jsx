@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, BellOff, Check, ShoppingCart, Inbox, Gift, Wallet, UserPlus, BellRing, Volume2, VolumeX } from "lucide-react";
+import { Bell, BellOff, Check, ShoppingCart, Inbox, Gift, Wallet, UserPlus, BellRing, Volume2, VolumeX, Share2, PiggyBank } from "lucide-react";
 import { navStart } from "@/components/LoadingSystem";
 
-const ICON = { order: ShoppingCart, lead: Inbox, claim: Gift, payout: Wallet, signup: UserPlus };
-const COLOR = { order: "text-brand bg-brand/15", lead: "text-sky-300 bg-sky-400/15", claim: "text-pink-300 bg-pink-400/15", payout: "text-amber-300 bg-amber-400/15", signup: "text-emerald-300 bg-emerald-400/15" };
+const ICON = { order: ShoppingCart, lead: Inbox, claim: Gift, payout: Wallet, signup: UserPlus, smm: Share2, wallet: PiggyBank };
+const COLOR = { order: "text-brand bg-brand/15", lead: "text-sky-300 bg-sky-400/15", claim: "text-pink-300 bg-pink-400/15", payout: "text-amber-300 bg-amber-400/15", signup: "text-emerald-300 bg-emerald-400/15", smm: "text-indigo-300 bg-indigo-400/15", wallet: "text-teal-300 bg-teal-400/15" };
 const MUTE_KEY = "htp_admin_mute";
 const MAX_BADGE = 99;
 

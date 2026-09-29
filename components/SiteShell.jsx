@@ -17,13 +17,14 @@ export default async function SiteShell({ children }) {
     <div className="max-nav:pb-[calc(3.75rem+env(safe-area-inset-bottom))]">
       <RefCapture enabled={s.affiliateOn === "true"} />
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[90] focus:bg-brand focus:px-4 focus:py-2 focus:rounded-lg">Skip to content</a>
-      <Nav name={s.siteName} logo={s.logo} affiliate={s.affiliateOn === "true"} offers={s.freeOffersOn === "true"} prompts={s.promptVaultOn === "true"} />
+      <Nav name={s.siteName} logo={s.logo} affiliate={s.affiliateOn === "true"} offers={s.freeOffersOn === "true"} prompts={s.promptVaultOn === "true"} smm={s.smmPanelOn === "true"} />
       <main id="main">{children}</main>
       <Footer s={s} />
       <ChatWidget
         channels={getChannels(s)}
         t={{
           greeting: s.chatGreeting, online: s.chatOnline, reply: s.chatReply, topicsLabel: s.chatTopicsLabel, fastTag: s.chatFastTag, browse: s.chatBrowse,
+          smm: s.smmPanelOn === "true" ? s.chatSmm : "",
           topics: [1, 2, 3].map((n) => ({ label: s["chatTopic" + n], msg: s["chatTopic" + n + "Msg"] })),
         }}
       />

@@ -8,6 +8,8 @@ import { dhakaDay, dhakaStart, addDays } from "@/lib/dhaka";
 const STATUS_STYLE = {
   PENDING: "bg-amber-500/15 text-amber-300",
   PAID: "bg-sky-500/15 text-sky-300",
+  IN_PROGRESS: "bg-indigo-500/15 text-indigo-300",
+  COMPLETED: "bg-teal-500/15 text-teal-300",
   DELIVERED: "bg-emerald-500/15 text-emerald-300",
   REFUNDED: "bg-purple-500/15 text-purple-300",
   CANCELLED: "bg-zinc-500/20 text-zinc-300",
@@ -20,7 +22,7 @@ export default async function Dashboard() {
   const since = dhakaStart(firstDay);
 
   const [orders, recent, toolCount, bundleCount, byStatus] = await Promise.all([
-    prisma.order.findMany({ where: { createdAt: { gte: since }, status: { in: ["PAID", "DELIVERED"] } }, select: { amount: true, createdAt: true } }),
+    prisma.order.findMany({ where: { createdAt: { gte: since }, status: { in: ["PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED"] } }, select: { amount: true, createdAt: true } }),
     prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 6 }),
     prisma.tool.count({ where: { active: true } }),
     prisma.bundle.count({ where: { active: true } }),
@@ -40,11 +42,11 @@ export default async function Dashboard() {
 
   const st = Object.fromEntries(byStatus.map((s) => [s.status, s]));
   const totalOrders = byStatus.reduce((a, s) => a + s._count, 0);
-  const revenue = (st.PAID?._sum.amount || 0) + (st.DELIVERED?._sum.amount || 0);
+  const revenue = (st.PAID?._sum.amount || 0) + (st.IN_PROGRESS?._sum.amount || 0) + (st.COMPLETED?._sum.amount || 0) + (st.DELIVERED?._sum.amount || 0);
   const pending = st.PENDING?._count || 0;
 
   const cards = [
-    { label: "Total revenue", num: revenue, prefix: "৳", icon: Wallet, note: "Paid + delivered", href: "/admin/orders?status=PAID,DELIVERED" },
+    { label: "Total revenue", num: revenue, prefix: "৳", icon: Wallet, note: "Paid + delivered", href: "/admin/orders?status=PAID,IN_PROGRESS,COMPLETED,DELIVERED" },
     { label: "Total orders", num: totalOrders, icon: ShoppingCart, note: "All time", href: "/admin/orders" },
     { label: "Pending orders", num: pending, icon: Clock, note: "Need your action", hot: pending > 0, href: "/admin/orders?status=PENDING" },
     { label: "Live listings", value: `${toolCount} tools · ${bundleCount} bundles`, icon: Wrench, note: "Visible on site", href: "/admin/tools" },
@@ -73,19 +75,20 @@ export default async function Dashboard() {
       <div className="grid xl:grid-cols-3 gap-6">
         <section className="xl:col-span-2 rounded-2xl border border-line bg-panel p-6">
           <div className="flex items-start justify-between gap-3"><h2 className="font-display font-semibold">Revenue · last 14 days</h2><Link href="/admin/sales" className="text-xs text-brand hover:underline whitespace-nowrap">Full sales report →</Link></div>
-          <p className="text-xs text-mist mb-4">৳ per day from paid and delivered orders</p>
+          <p className="text-xs text-mist mb-4">৳ per day from paid, in-progress, completed and delivered orders</p>
           <RevenueChart data={chart} />
         </section>
 
         <section className="rounded-2xl border border-line bg-panel p-6">
           <h2 className="font-display font-semibold mb-4">Orders by status</h2>
           <div className="space-y-4">
-            {["PENDING", "PAID", "DELIVERED", "REFUNDED", "CANCELLED"].map((s) => {
+            {["PENDING", "PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED", "REFUNDED", "CANCELLED"].map((s) => {
               const n = st[s]?._count || 0;
+              const label = s.split("_").map((w) => w[0] + w.slice(1).toLowerCase()).join(" ");
               return (
                 <Link key={s} href={`/admin/orders?status=${s}`} className="block rounded-lg -mx-2 px-2 py-1 hover:bg-panel2/60 transition-colors">
                   <div className="flex justify-between text-sm mb-1.5">
-                    <span className="text-mist">{s[0] + s.slice(1).toLowerCase()}</span>
+                    <span className="text-mist">{label}</span>
                     <span className="font-semibold">{n}</span>
                   </div>
                   <div className="h-2 rounded-full bg-panel2 overflow-hidden">

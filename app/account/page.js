@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { Wallet, Users, MousePointerClick, Clock } from "lucide-react";
 import SiteShell from "@/components/SiteShell";
-import { LogoutButton, CopyLink, PayoutForm } from "@/components/account/AccountBits";
+import { LogoutButton, CopyLink, PayoutForm, WalletCard } from "@/components/account/AccountBits";
+import { walletBalance } from "@/lib/wallet";
 import { prisma } from "@/lib/db";
 import { getUserId } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
@@ -17,6 +18,8 @@ export const metadata = { title: "Client Area — HiT Tech Pro", robots: { index
 const STATUS = {
   PENDING: "bg-amber-500/15 text-amber-300",
   PAID: "bg-sky-500/15 text-sky-300",
+  IN_PROGRESS: "bg-indigo-500/15 text-indigo-300",
+  COMPLETED: "bg-teal-500/15 text-teal-300",
   DELIVERED: "bg-emerald-500/15 text-emerald-300",
   REFUNDED: "bg-purple-500/15 text-purple-300",
   CANCELLED: "bg-zinc-500/20 text-zinc-300",
@@ -33,10 +36,12 @@ export default async function AccountPage() {
 
   const s = await getSettings();
   const affOn = affiliateOn(s);
-  const [orders, payouts, stats] = await Promise.all([
+  const [orders, payouts, stats, balance, topups] = await Promise.all([
     prisma.order.findMany({ where: { OR: [{ userId: user.id }, { email: user.email }] }, orderBy: { createdAt: "desc" } }),
     prisma.payout.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
     affiliateStats(user),
+    walletBalance(user.id),
+    prisma.walletTopup.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
   const min = parseInt(s.affMinPayout, 10) || 0;
   const wa = waChannel(getChannels(s));
@@ -60,6 +65,8 @@ export default async function AccountPage() {
           <LogoutButton />
         </div>
 
+        <WalletCard balance={balance} methods={methods} topups={topups} />
+
         <section>
           <h2 className="font-display font-semibold text-xl mb-4">My orders</h2>
           <div className="rounded-2xl border border-line bg-panel overflow-x-auto">
@@ -77,7 +84,7 @@ export default async function AccountPage() {
                     <td className="px-4 py-3 font-medium">{o.itemName}</td>
                     <td className="px-4 py-3">{tk(o.amount)}</td>
                     <td className="px-4 py-3 text-mist whitespace-nowrap">{fmt(o.createdAt)}</td>
-                    <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[o.status]}`}>{o.status}</span></td>
+                    <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[o.status]}`}>{o.status.split("_").join(" ")}</span></td>
                     <td className="px-4 py-3 text-right">
                       {wa && <a href={withText(wa.href, fillMsg(s.waAccountMsg, { number: o.number, items: o.itemName }))} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white hover:brightness-110" style={{ background: "linear-gradient(135deg,#2BE372,#0E9F6E)" }}><MessageCircle size={13} /> {s.waAccountLabel}</a>}
                     </td>

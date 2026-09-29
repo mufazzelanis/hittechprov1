@@ -15,6 +15,8 @@ enum Role {
 enum OrderStatus {
   PENDING
   PAID
+  IN_PROGRESS
+  COMPLETED
   DELIVERED
   REFUNDED
   CANCELLED
@@ -124,6 +126,7 @@ model Order {
   status    OrderStatus @default(PENDING)
   createdAt DateTime    @default(now())
   events    OrderEvent[]
+  smmOrder  SmmOrder?
 }
 
 // Audit trail for one order: every status change (logged automatically) plus admin notes and
@@ -223,6 +226,55 @@ model Notification {
   @@index([read, createdAt])
 }
 
+// SMM (social media marketing) reseller catalog, mirrored from the provider's `services` API and
+// cached here so the public page never calls the provider directly. `providerServiceId`/`providerRate`
+// are provider-sourced and refreshed on every admin sync; `sellRate`/`category`/`active`/`sort` are the
+// admin's own pricing/merchandising choices and a sync never overwrites them.
+model SmmService {
+  id                String     @id @default(cuid())
+  providerServiceId Int        @unique
+  name              String
+  category          String     @default("Other")
+  type              String     @default("Default")
+  providerRate      Float // provider's price per 1000, in their currency (USD)
+  sellRate          Int // your price per 1000, in ৳ - admin editable
+  min               Int
+  max               Int
+  refill            Boolean    @default(false)
+  cancel            Boolean    @default(false)
+  active            Boolean    @default(false)
+  sort              Int        @default(0)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  orders            SmmOrder[]
+
+  @@index([category, active, sort])
+}
+
+// One row per SMM order, 1:1 with the Order it was checked out as (Order carries the shared
+// name/email/phone/payment/status fields already used by every other order type on the site).
+// `providerOrderId` stays null until an admin explicitly sends it to the provider - payment here is
+// verified manually (same as every other order), so placing the real provider order is a deliberate,
+// admin-triggered action, never automatic on checkout.
+model SmmOrder {
+  id              String     @id @default(cuid())
+  orderId         String     @unique
+  order           Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  serviceId       String
+  service         SmmService @relation(fields: [serviceId], references: [id])
+  link            String     @db.Text
+  quantity        Int
+  providerOrderId Int?
+  providerStatus  String     @default("Not sent")
+  startCount      Int?
+  remains         Int?
+  charge          Float?
+  lastSyncedAt    DateTime?
+  createdAt       DateTime   @default(now())
+
+  @@index([providerStatus])
+}
+
 model Payout {
   id        String   @id @default(cuid())
   userId    String
@@ -233,4 +285,25 @@ model Payout {
   account   String
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
+}
+
+// A customer's wallet deposit request (they paid the site's own bKash/Nagad/etc. and are claiming it
+// here, exactly like an order's payment - same manual admin verification). There is no stored balance
+// field anywhere: a user's spendable balance is always computed on demand as
+// sum(APPROVED topups) - sum(orders paid with method "Wallet", excluding cancelled/refunded) - see
+// lib/wallet.js. That mirrors how affiliate balance already works in this codebase (lib/affiliate.js) -
+// deriving the number from source records means it can never drift out of sync with reality, and a
+// refunded wallet order automatically gives the money back with no extra code.
+model WalletTopup {
+  id        String   @id @default(cuid())
+  userId    String
+  userName  String
+  userEmail String
+  amount    Int
+  method    String
+  txnId     String?
+  status    String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
 }

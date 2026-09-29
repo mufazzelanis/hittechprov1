@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { PhoneCall, X, Search, Plus, Trash2, Loader2 } from "lucide-react";
 
-const STATUSES = ["PENDING", "PAID", "DELIVERED", "REFUNDED", "CANCELLED"];
+const STATUSES = ["PENDING", "PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED", "REFUNDED", "CANCELLED"];
 const METHODS = ["Cash", "bKash", "Nagad", "Rocket", "Bank Transfer", "Other"];
 
 export default function ManualOrder({ onCreated }) {
@@ -127,7 +127,7 @@ export default function ManualOrder({ onCreated }) {
                     {override !== null && override !== sum && <button type="button" className="text-brand hover:underline" onClick={() => setOverride(null)}>Use item total</button>}
                   </p>
                 </div>
-                <div><label className="block text-xs text-mist mb-1.5">Status</label><select className="input" value={f.status} onChange={(e) => set("status", e.target.value)}>{STATUSES.map((s) => <option key={s}>{s}</option>)}</select></div>
+                <div><label className="block text-xs text-mist mb-1.5">Status</label><select className="input" value={f.status} onChange={(e) => set("status", e.target.value)}>{STATUSES.map((s) => <option key={s} value={s}>{s.split("_").join(" ")}</option>)}</select></div>
                 <div><label className="block text-xs text-mist mb-1.5">Payment method</label><input className="input" list="mo-methods" value={f.method} onChange={(e) => set("method", e.target.value)} /><datalist id="mo-methods">{METHODS.map((m) => <option key={m} value={m} />)}</datalist></div>
                 <div><label className="block text-xs text-mist mb-1.5">Transaction ID (optional)</label><input className="input" value={f.txnId} onChange={(e) => set("txnId", e.target.value)} /></div>
                 <div className="sm:col-span-2"><label className="block text-xs text-mist mb-1.5">Note (optional)</label><textarea rows={2} className="input" value={f.note} onChange={(e) => set("note", e.target.value)} placeholder="e.g. Called at 3pm, will pay by bKash tonight" /></div>
