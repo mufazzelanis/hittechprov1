@@ -26,7 +26,10 @@ export default async function SmmReportPage() {
     prisma.smmOrder.findMany({ include: { order: true, service: true }, orderBy: { createdAt: "desc" } }).catch(() => []),
     getSettings(),
   ]);
-  const balance = await smmBalance().catch(() => null);
+  // The provider returns balance as a numeric string (e.g. "0.0000000"), not a number - must be parsed
+  // before any arithmetic or .toFixed() call, or it throws at render time.
+  const rawBalance = await smmBalance().catch(() => null);
+  const balance = rawBalance ? { balance: parseFloat(rawBalance.balance) || 0, currency: rawBalance.currency || "USD" } : null;
   const usdRate = parseFloat(s.usdRate) || 120;
 
   const paid = smmOrders.filter((o) => PAID_STATES.includes(o.order.status));

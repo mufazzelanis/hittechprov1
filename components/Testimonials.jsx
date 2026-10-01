@@ -7,7 +7,7 @@ const AVATAR = ["#E8352B", "#2563EB", "#7C3AED", "#0D9488", "#EA580C", "#DB2777"
 function Card({ r }) {
   const c = AVATAR[r.name.length % AVATAR.length];
   return (
-    <div className="w-72 shrink-0 rounded-xl border border-line bg-panel p-4">
+    <div className="w-72 shrink-0 rounded-xl border border-line bg-panel p-4 hover:border-brand/40 transition-colors">
       <div className="flex items-center gap-3">
         <span className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: c + "33", color: c }}>{r.name[0]}</span>
         <div>

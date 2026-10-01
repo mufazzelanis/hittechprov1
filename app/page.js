@@ -16,7 +16,7 @@ import { splitDescription } from "@/lib/toolText";
 import { getSettings } from "@/lib/settings";
 import { getChannels } from "@/lib/channels";
 import { getToolInfo } from "@/lib/limits";
-import { ogFallback } from "@/lib/seo";
+import { ogFallback, siteUrl } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 
 export const dynamic = "force-dynamic";
@@ -47,15 +47,32 @@ export default async function Home() {
   const soon = (id) => !!info[id]?.soon;
   const toolsView = tools.map((t) => ({ soon: soon(t.id),
     id: t.id, slug: t.slug, name: t.name, description: splitDescription(t.description).intro, feats: splitDescription(t.description).feats, image: t.image, price: t.price,
-    duration: t.duration, accent: t.accent, category: t.category?.name || null,
+    duration: t.duration, accent: t.accent, category: t.category?.name || null, featured: t.featured,
   }));
   const lowest = tools.length ? Math.min(...tools.map((t) => t.price)) : s.startingPrice;
+  const avgRating = reviews.length ? reviews.reduce((n, r) => n + r.rating, 0) / reviews.length : 0;
+  const sellable = toolsView.filter((t) => !t.soon);
+  const heroShowcase = (sellable.filter((t) => t.featured).length ? sellable.filter((t) => t.featured) : sellable).slice(0, 5);
 
   return (
     <SiteShell>
         <JsonLd data={{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.slice(0, 10).map((f) => ({ "@type": "Question", name: f.question, acceptedAnswer: { "@type": "Answer", text: f.answer } })) }} />
+        {reviews.length > 0 && (
+          <JsonLd data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "@id": `${siteUrl(s)}/#organization`,
+            aggregateRating: { "@type": "AggregateRating", ratingValue: avgRating.toFixed(1), reviewCount: reviews.length, bestRating: 5, worstRating: 1 },
+            review: reviews.slice(0, 10).map((r) => ({
+              "@type": "Review",
+              author: { "@type": "Person", name: r.name },
+              reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5, worstRating: 1 },
+              reviewBody: r.text,
+            })),
+          }} />
+        )}
         <HeroPanels s={s} tools={toolsView} categories={categories.map((c) => c.name)} bundles={bundles.map((b) => ({ ...b, soon: soon(b.id) }))} plans={plans.map((p) => ({ ...p, soon: soon(p.id) }))} />
-        <Hero s={{ ...s, startingPrice: lowest }} />
+        <Hero s={{ ...s, startingPrice: lowest }} showcase={heroShowcase} />
         <ToolMarquee names={tools.map((t) => t.name)} label={s.marqueeLabel} />
         <ToolsGrid tools={toolsView} categories={categories.map((c) => c.name)} startingPrice={lowest} s={s} channels={getChannels(s)} />
         <Bundles bundles={bundles.map((b) => ({ ...b, soon: soon(b.id) }))} s={s} />

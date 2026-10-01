@@ -50,7 +50,7 @@ export default function DemoStats({ s }) {
           <div className="grid grid-cols-2 gap-4 order-2 lg:order-1">
             {cards.map((c, i) => (
               <Reveal key={i} delay={i * 0.08}>
-                <div className={`h-full rounded-xl border border-line bg-gradient-to-br ${c.tint} to-panel p-4 hover:border-brand/40 transition-colors`}>
+                <div className={`h-full rounded-xl border border-line bg-gradient-to-br ${c.tint} to-panel p-4 hover:border-brand/40 hover:-translate-y-1 hover:shadow-glow transition-all`}>
                   <div className="flex items-center gap-2.5 mb-3">
                     <span className="w-8 h-8 rounded-lg bg-brand/15 text-brand flex items-center justify-center"><c.icon size={15} /></span>
                     <span className="font-semibold text-sm">{c.title}</span>
@@ -73,7 +73,7 @@ export default function DemoStats({ s }) {
             </h2>
             <p className="text-mist mt-5 leading-relaxed">{s.demoText}</p>
             <div className="flex flex-wrap gap-3 mt-7">
-              <a href="#contact" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-brand to-brand-light font-semibold text-sm shadow-glow">
+              <a href="#contact" className="btn-shine inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-brand to-brand-light font-semibold text-sm shadow-glow">
                 <Clock size={15} /> {s.demoBtn1}
               </a>
               <a href={s.demoUrl || "#contact"} target={s.demoUrl ? "_blank" : undefined} rel="noreferrer" className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-line hover:border-mist text-sm font-semibold">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Plus, Search, Pencil, Trash2, X, Loader2, Upload, Check, SlidersHorizontal, Download, Eye, EyeOff, BarChart3 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, X, Loader2, Upload, Check, SlidersHorizontal, Download, Eye, EyeOff, BarChart3, Clock, Share2, AlertTriangle, Wallet, ShoppingBag, Copy, Layers, Star, ImageOff, ChevronUp, ChevronDown, Tag, FolderX } from "lucide-react";
 import { useSelection, Check3, BulkBar, Modal, ConfirmDelete, downloadCsv, plural } from "./Bulk";
 import { RESOURCES, ICONS } from "@/lib/resources";
 import ManualOrder from "./ManualOrder";
@@ -21,6 +21,12 @@ const STATUS_STYLE = {
 
 const fmtDate = (d) =>
   new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const hoursSince = (d) => (Date.now() - new Date(d).getTime()) / 36e5;
+const isToday = (d) => new Date(d).toDateString() === new Date().toDateString();
+const STALE_PENDING_HOURS = 24;
+const PAID_STATES = ["PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED"];
+const needsSmmSend = (r) => r.smmOrder && !r.smmOrder.providerOrderId && PAID_STATES.includes(r.status);
+const isStalePending = (r) => r.status === "PENDING" && hoursSince(r.createdAt) > STALE_PENDING_HOURS;
 
 function emptyRow(res) {
   const o = {};
@@ -95,6 +101,12 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
     } else flash("Delete failed");
   }
 
+  async function duplicateRow(row) {
+    const body = { ...row, name: `${row.name} (copy)`, active: false, soon: false };
+    const r = await fetch(`/api/admin/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (r.ok) { flash("Duplicated — edit the copy below"); load(); } else flash("Could not duplicate");
+  }
+
   const listFields = res.fields.filter((f) => f.list);
 
   // opened from the global search: jump straight into the record or the add form
@@ -127,21 +139,82 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
     downloadCsv(`${name}-${label}-${new Date().toISOString().slice(0, 10)}.csv`, cols.map((f) => f.label), list.map((r) => cols.map((f) => val(r, f))));
   }
 
+  const orderInsights = name === "orders" ? {
+    todayCount: rows.filter((r) => isToday(r.createdAt)).length,
+    todayRevenue: rows.filter((r) => isToday(r.createdAt) && PAID_STATES.includes(r.status)).reduce((n, r) => n + r.amount, 0),
+    pending: rows.filter((r) => r.status === "PENDING").length,
+    needsAttention: rows.filter((r) => isStalePending(r) || needsSmmSend(r)).length,
+  } : null;
+
+  const toolInsights = name === "tools" ? {
+    total: rows.length,
+    visible: rows.filter((r) => r.active).length,
+    featured: rows.filter((r) => r.featured).length,
+    noImage: rows.filter((r) => !r.image).length,
+  } : null;
+
+  const categoryInsights = name === "categories" ? {
+    total: rows.length,
+    visible: rows.filter((r) => r.active).length,
+    hidden: rows.filter((r) => !r.active).length,
+    empty: rows.filter((r) => !r._count?.tools).length,
+  } : null;
+
+  async function moveCategory(row, dir) {
+    const idx = rows.findIndex((r) => r.id === row.id);
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= rows.length) return;
+    const next = [...rows];
+    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+    setRows(next);
+    await Promise.all(
+      next.map((r, i) =>
+        fetch(`/api/admin/${name}/${r.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sort: i }) })
+      )
+    );
+    flash("Reordered");
+  }
+
   function cell(row, f) {
     const v = row[f.key];
     switch (f.list) {
       case "image":
-        return v ? <img src={v} alt="" className="w-12 h-9 rounded object-cover border border-line" /> : <div className="w-12 h-9 rounded border border-line bg-panel2" />;
+        if (v) return <img src={v} alt="" className="w-12 h-9 rounded object-cover border border-line" />;
+        if (row.accent) {
+          return (
+            <div
+              className="w-12 h-9 rounded border border-line flex items-center justify-center text-sm font-bold text-white shrink-0"
+              style={{ background: `linear-gradient(135deg, ${row.accent}, ${row.accent}99)` }}
+              title="No cover image — showing accent color"
+            >
+              {(row.name || "?").trim().charAt(0).toUpperCase()}
+            </div>
+          );
+        }
+        return <div className="w-12 h-9 rounded border border-line bg-panel2" />;
       case "category":
-        return <span className="text-mist">{row.category?.name || "—"}</span>;
+        return row.category?.name ? (
+          <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium bg-panel2 border border-line text-mist whitespace-nowrap">{row.category.name}</span>
+        ) : (
+          <span className="text-mist/50 text-xs">—</span>
+        );
       case "money":
         return <span className="font-semibold">৳{Number(v).toLocaleString()}</span>;
       case "source":
         return v === "manual" ? <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold bg-amber-500/15 text-amber-300">Manual</span> : <span className="text-mist text-xs">Website</span>;
       case "orderno":
         return <span className="text-mist">#{v}</span>;
-      case "date":
-        return <span className="text-mist text-xs whitespace-nowrap">{fmtDate(v)}</span>;
+      case "date": {
+        if (name !== "orders" || f.key !== "createdAt") return <span className="text-mist text-xs whitespace-nowrap">{fmtDate(v)}</span>;
+        const h = hoursSince(v);
+        const rel = h < 1 ? "just now" : h < 24 ? `${Math.floor(h)}h ago` : `${Math.floor(h / 24)}d ago`;
+        return (
+          <span className="text-xs whitespace-nowrap">
+            <span className="text-mist">{fmtDate(v)}</span>
+            <span className={`block mt-0.5 ${isStalePending(row) ? "text-amber-400 font-semibold" : "text-mist/70"}`}>{rel}</span>
+          </span>
+        );
+      }
       case "status":
         return res.noCreate ? (
           <select
@@ -174,8 +247,40 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
             <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${v ? "left-[18px]" : "left-0.5"}`} />
           </button>
         );
-      default:
+      default: {
+        if (name === "orders" && f.key === "itemName") {
+          return (
+            <span className="block min-w-0">
+              <span className="font-medium block truncate max-w-[220px]">{String(v ?? "")}</span>
+              {(row.smmOrder || isStalePending(row)) && (
+                <span className="flex flex-wrap items-center gap-1.5 mt-1">
+                  {row.smmOrder && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 text-indigo-300 px-1.5 py-0.5 text-[10px] font-semibold"><Share2 size={9} /> SMM</span>
+                  )}
+                  {needsSmmSend(row) && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-brand/15 text-brand px-1.5 py-0.5 text-[10px] font-semibold"><ShoppingBag size={9} /> Send to SMMIU</span>
+                  )}
+                  {isStalePending(row) && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 text-amber-300 px-1.5 py-0.5 text-[10px] font-semibold"><AlertTriangle size={9} /> Waiting</span>
+                  )}
+                </span>
+              )}
+            </span>
+          );
+        }
+        if (name === "categories" && f.key === "name") {
+          const count = row._count?.tools || 0;
+          return (
+            <span className="block min-w-0">
+              <span className="font-medium block truncate max-w-[220px]">{String(v ?? "")}</span>
+              <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold mt-1 ${count === 0 ? "bg-amber-500/15 text-amber-300" : "bg-panel2 text-mist"}`}>
+                {count} {plural("tool", count)}
+              </span>
+            </span>
+          );
+        }
         return <span className={f.key === "name" || f.key === "question" ? "font-medium" : "text-mist"}>{String(v ?? "").slice(0, 70)}</span>;
+      }
     }
   }
 
@@ -205,6 +310,66 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
           </button>
         )}
       </div>
+
+      {orderInsights && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {[
+            { label: "Today's orders", value: orderInsights.todayCount, icon: ShoppingBag, tone: "text-brand bg-brand/10" },
+            { label: "Today's revenue", value: `৳${orderInsights.todayRevenue.toLocaleString()}`, icon: Wallet, tone: "text-emerald-400 bg-emerald-500/10" },
+            { label: "Pending", value: orderInsights.pending, icon: Clock, tone: "text-amber-400 bg-amber-500/10", onClick: () => setStatus((s) => (s === "PENDING" ? "" : "PENDING")) },
+            { label: "Needs attention", value: orderInsights.needsAttention, icon: AlertTriangle, tone: orderInsights.needsAttention > 0 ? "text-red-400 bg-red-500/10" : "text-mist bg-panel2", hot: orderInsights.needsAttention > 0 },
+          ].map((c) => {
+            const Comp = c.onClick ? "button" : "div";
+            return (
+              <Comp key={c.label} type={c.onClick ? "button" : undefined} onClick={c.onClick} className={`rounded-xl border p-3.5 text-left ${c.hot ? "border-red-500/40" : "border-line"} bg-panel ${c.onClick ? "hover:border-mist transition-colors cursor-pointer" : ""} ${c.onClick && status === "PENDING" ? "ring-1 ring-amber-400/50" : ""}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-mist">{c.label}</span>
+                  <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${c.tone}`}><c.icon size={13} /></span>
+                </div>
+                <p className="font-display font-bold text-xl mt-1.5">{c.value}</p>
+              </Comp>
+            );
+          })}
+        </div>
+      )}
+
+      {toolInsights && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {[
+            { label: "Total tools", value: toolInsights.total, icon: Layers, tone: "text-sky-400 bg-sky-500/10" },
+            { label: "Visible on site", value: toolInsights.visible, icon: Eye, tone: "text-emerald-400 bg-emerald-500/10" },
+            { label: "Featured", value: toolInsights.featured, icon: Star, tone: "text-amber-400 bg-amber-500/10" },
+            { label: "No cover image", value: toolInsights.noImage, icon: ImageOff, tone: toolInsights.noImage > 0 ? "text-red-400 bg-red-500/10" : "text-mist bg-panel2", hot: toolInsights.noImage > 0 },
+          ].map((c) => (
+            <div key={c.label} className={`rounded-xl border p-3.5 ${c.hot ? "border-red-500/40" : "border-line"} bg-panel`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-mist">{c.label}</span>
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${c.tone}`}><c.icon size={13} /></span>
+              </div>
+              <p className="font-display font-bold text-xl mt-1.5">{c.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {categoryInsights && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+          {[
+            { label: "Total categories", value: categoryInsights.total, icon: Tag, tone: "text-sky-400 bg-sky-500/10" },
+            { label: "Visible", value: categoryInsights.visible, icon: Eye, tone: "text-emerald-400 bg-emerald-500/10" },
+            { label: "Hidden", value: categoryInsights.hidden, icon: EyeOff, tone: "text-mist bg-panel2" },
+            { label: "Empty (no tools)", value: categoryInsights.empty, icon: FolderX, tone: categoryInsights.empty > 0 ? "text-amber-400 bg-amber-500/10" : "text-mist bg-panel2", hot: categoryInsights.empty > 0 },
+          ].map((c) => (
+            <div key={c.label} className={`rounded-xl border p-3.5 ${c.hot ? "border-amber-500/40" : "border-line"} bg-panel`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-mist">{c.label}</span>
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${c.tone}`}><c.icon size={13} /></span>
+              </div>
+              <p className="font-display font-bold text-xl mt-1.5">{c.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="hidden md:block rounded-2xl border border-line bg-panel overflow-x-auto">
         <table className="w-full text-sm">
@@ -236,6 +401,21 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
                     <td key={f.key} className="px-4 py-3 align-middle">{cell(row, f)}</td>
                   ))}
                   <td className="px-4 py-3 text-right whitespace-nowrap">
+                    {name === "categories" && (
+                      <>
+                        <button onClick={() => moveCategory(row, -1)} disabled={!!q.trim() || rows.indexOf(row) === 0} title={q.trim() ? "Clear search to reorder" : "Move up"} className="p-2 text-mist hover:text-fg disabled:opacity-30 disabled:hover:text-mist" aria-label="Move up">
+                          <ChevronUp size={15} />
+                        </button>
+                        <button onClick={() => moveCategory(row, 1)} disabled={!!q.trim() || rows.indexOf(row) === rows.length - 1} title={q.trim() ? "Clear search to reorder" : "Move down"} className="p-2 text-mist hover:text-fg disabled:opacity-30 disabled:hover:text-mist" aria-label="Move down">
+                          <ChevronDown size={15} />
+                        </button>
+                      </>
+                    )}
+                    {name === "tools" && (
+                      <button onClick={() => duplicateRow(row)} className="p-2 text-mist hover:text-fg" aria-label="Duplicate" title="Duplicate this tool">
+                        <Copy size={15} />
+                      </button>
+                    )}
                     <button onClick={() => setEditing({ ...row })} className="p-2 text-mist hover:text-fg" aria-label="Edit">
                       <Pencil size={15} />
                     </button>
@@ -262,6 +442,13 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
                 <Check3 className="mt-0.5" checked={pick.has(row.id)} onChange={(e) => pick.toggle(row.id, e)} label={`Select ${rowName(row)}`} />
                 <div className="min-w-0 flex-1 font-medium">{cell(row, listFields[0])}</div>
                 <div className="shrink-0 -mr-2 -mt-2">
+                  {name === "categories" && !q.trim() && (
+                    <>
+                      <button onClick={() => moveCategory(row, -1)} disabled={rows.indexOf(row) === 0} className="p-3 text-mist hover:text-fg disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
+                      <button onClick={() => moveCategory(row, 1)} disabled={rows.indexOf(row) === rows.length - 1} className="p-3 text-mist hover:text-fg disabled:opacity-30" aria-label="Move down"><ChevronDown size={17} /></button>
+                    </>
+                  )}
+                  {name === "tools" && <button onClick={() => duplicateRow(row)} className="p-3 text-mist hover:text-fg" aria-label="Duplicate"><Copy size={17} /></button>}
                   <button onClick={() => setEditing({ ...row })} className="p-3 text-mist hover:text-fg" aria-label="Edit"><Pencil size={17} /></button>
                   {name !== "orders" && <button onClick={() => remove(row)} className="p-3 text-mist hover:text-red-400" aria-label="Delete"><Trash2 size={17} /></button>}
                 </div>

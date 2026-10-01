@@ -10,7 +10,7 @@ const nums = (v) => list(v).map((x) => Math.max(0, Math.min(100, parseFloat(x) |
 
 function Bars({ values, metrics, color, title, sub, icon: Icon, footer, FooterIcon, good }) {
   return (
-    <div className={`rounded-2xl border bg-panel p-6 ${good ? "border-brand/40" : "border-line"}`}>
+    <div className={`rounded-2xl border bg-panel p-6 transition-shadow ${good ? "border-brand/40 hover:shadow-glow" : "border-line"}`}>
       <span className="w-11 h-11 rounded-full bg-panel2 flex items-center justify-center mx-auto"><Icon size={20} className={good ? "text-brand" : "text-mist"} /></span>
       <h3 className={`text-center font-semibold mt-3 ${good ? "text-brand" : ""}`}>{title}</h3>
       <p className="text-center text-xs text-mist">{sub}</p>

@@ -22,7 +22,7 @@ export default function FAQ({ faqs, s }) {
             const on = openIdx === i;
             return (
               <Reveal key={f.id} delay={Math.min(i, 5) * 0.04} y={14}>
-                <div className={`rounded-xl border bg-panel transition-colors ${on ? "border-brand/40" : "border-line"}`}>
+                <div className={`rounded-xl border bg-panel transition-colors ${on ? "border-brand/40" : "border-line hover:border-mist"}`}>
                   <button
                     onClick={() => setOpenIdx(on ? -1 : i)}
                     aria-expanded={on}

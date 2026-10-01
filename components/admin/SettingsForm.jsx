@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Loader2, Check, Search, Store, Globe, CreditCard, MessageCircle, Users, ShieldCheck, X, Eye, EyeOff, RotateCcw,
-  Plus, Trash2, ChevronUp, ChevronDown, Download, Upload, Sparkles, AlertCircle, Undo2, BadgeCheck,
+  Plus, Trash2, ChevronUp, ChevronDown, Download, Upload, Sparkles, AlertCircle, Undo2, BadgeCheck, Radar, CheckCircle2,
 } from "lucide-react";
 import { ImageInput } from "./ResourceManager";
 import PasswordForm from "./PasswordForm";
@@ -228,6 +228,39 @@ function SeoPreview({ v }) {
   );
 }
 
+// Sitemap + structured data are already fully automatic (generated live from the database, no upload
+// ever needed - see app/sitemap.js). This button is the one piece that genuinely benefits from a manual
+// trigger: pushing every page to Bing/Yandex (via IndexNow) right now instead of waiting for their next
+// scheduled crawl. Google has no equivalent public API - Search Console's own crawler is what indexes
+// this site for Google, sitemap.xml is what to submit there, once, after launch.
+function IndexNowPanel({ v }) {
+  const [st, setSt] = useState({ busy: false, msg: "", ok: false });
+  const sitemapUrl = `${String(v.siteUrl || "").replace(/\/$/, "") || "https://yourdomain.com"}/sitemap.xml`;
+
+  async function resubmit() {
+    setSt({ busy: true, msg: "", ok: false });
+    const r = await fetch("/api/admin/seo/indexnow", { method: "POST" });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) setSt({ busy: false, msg: `Sent ${j.count} pages to Bing/Yandex.`, ok: true });
+    else setSt({ busy: false, msg: j.error || "Failed", ok: false });
+  }
+
+  return (
+    <div className="mt-5 rounded-xl border border-line bg-panel2/40 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2 flex items-center gap-1.5"><Radar size={12} /> Search engine indexing</p>
+      <ul className="text-xs text-mist space-y-1.5 leading-relaxed mb-3">
+        <li className="flex items-start gap-1.5"><CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" /> Sitemap is fully automatic — every tool and page you add here appears at <a href="/sitemap.xml" target="_blank" rel="noreferrer" className="text-brand hover:underline">{sitemapUrl}</a> instantly, nothing to upload.</li>
+        <li className="flex items-start gap-1.5"><CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" /> New or edited tools already auto-notify Bing/Yandex the moment you save them.</li>
+        <li className="flex items-start gap-1.5"><AlertCircle size={13} className="text-amber-400 shrink-0 mt-0.5" /> Google has no automatic API for this — once, after launch, add this site in <a href="https://search.google.com/search-console" target="_blank" rel="noreferrer" className="text-brand hover:underline">Google Search Console</a>, verify with the code above, and paste in the sitemap link above.</li>
+      </ul>
+      <button type="button" onClick={resubmit} disabled={st.busy} className="btn-ghost !py-2 text-xs">
+        {st.busy ? <Loader2 size={13} className="animate-spin" /> : <Radar size={13} />} Resubmit all pages to Bing/Yandex now
+      </button>
+      {st.msg && <p className={`text-xs mt-2 ${st.ok ? "text-emerald-400" : "text-red-400"}`}>{st.msg}</p>}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------ setup checklist */
 function Checklist({ v, go }) {
   const items = [
@@ -370,7 +403,7 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
         <div className="grid sm:grid-cols-2 gap-4">
           {b.fields.map((f) => <Field key={f.key} f={f} v={v} set={set} defaults={defaults} dirty={dirtySet.has(f.key) || (f.toggle && dirtySet.has(f.toggle))} />)}
         </div>
-        {b.custom === "seoPreview" && <SeoPreview v={v} />}
+        {b.custom === "seoPreview" && (<><SeoPreview v={v} /><IndexNowPanel v={v} /></>)}
       </Card>
     );
   }

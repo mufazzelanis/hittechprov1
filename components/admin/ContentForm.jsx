@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Loader2, Check, Search, RotateCcw, Home, LayoutGrid, Users, Gift, Gauge, ShoppingBag, ChevronDown, ExternalLink,
-  Monitor, Smartphone, RefreshCw, Star, Download, Upload, Undo2, Sparkles, X, AlertCircle, PanelRight, Layers, Wand2,
+  Monitor, Smartphone, RefreshCw, Star, Download, Upload, Undo2, Sparkles, X, AlertCircle, PanelRight, Layers, Wand2, Share2,
 } from "lucide-react";
 import { CONTENT_PAGES, CONTENT_KEYS } from "@/lib/content";
 import { ImageInput } from "./ResourceManager";
@@ -15,6 +15,7 @@ const META = {
   home: { icon: Home, url: "/", note: "Everything on the front page, from the hero to the FAQ." },
   tools: { icon: LayoutGrid, url: "/tools", note: "The full catalogue page." },
   prompts: { icon: Wand2, url: "/prompts", note: "AI Prompt Vault page and popup." },
+  smm: { icon: Share2, url: "/smm-panel", note: "SMM Panel page (shown only while it's switched off)." },
   affiliate: { icon: Users, url: "/affiliate", note: "The affiliate program page." },
   offers: { icon: Gift, url: "/free-offers", note: "Free Offers page and claim popup." },
   limits: { icon: Gauge, url: "/limits", note: "Live tool status and limits page." },

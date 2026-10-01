@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Search, Filter, ShoppingCart, Flame, ChevronRight, Check, Loader2, Clock } from "lucide-react";
+import { Search, Filter, ShoppingCart, Flame, ChevronRight, Check, Loader2, Clock, ArrowRight } from "lucide-react";
 import { useCheckout } from "./CheckoutProvider";
 import { ToolCover } from "./ToolsGrid";
 import Link from "next/link";
@@ -82,23 +82,27 @@ export default function ToolsCatalog({ tools, categories, initialCat = "", initi
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(i % PAGE, 10) * 0.03 }}
-            whileHover={{ y: -4 }}
+            whileHover={{ y: -6 }}
             onMouseMove={spotMove}
-            className="spot rounded-2xl border border-line bg-panel overflow-hidden flex flex-col hover:border-brand/50 transition-colors"
+            className="spot group rounded-2xl border border-line bg-panel overflow-hidden flex flex-col hover:border-brand/60 hover:shadow-glow transition-all"
           >
-            <Link href={`/tool/${t.slug}`} className="relative block aspect-[4/3]"><ToolCover tool={t} />{t.soon && <span className="absolute top-2 left-2 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold tracking-wide text-black shadow-lg">{s.soonBadge}</span>}</Link>
+            <Link href={`/tool/${t.slug}`} className="relative block aspect-[4/3] overflow-hidden">
+              <div className="transition-transform duration-500 group-hover:scale-[1.06] w-full h-full"><ToolCover tool={t} /></div>
+              {t.soon && <span className="absolute top-2 left-2 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold tracking-wide text-black shadow-lg">{s.soonBadge}</span>}
+              {!t.soon && t.featured && <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold tracking-wide text-white shadow-lg"><Flame size={10} className="fill-white" /> Popular</span>}
+            </Link>
             <div className="p-3 sm:p-4 flex-1 flex flex-col">
               {t.category && <span className="self-start text-[10px] px-2 py-1 rounded-full bg-panel2 text-mist">{t.category}</span>}
-              <h3 className="font-semibold text-sm mt-2 leading-snug"><Link href={`/tool/${t.slug}`} className="hover:text-brand transition-colors">{t.name}</Link></h3>
+              <h3 className="font-semibold text-sm mt-2 leading-snug"><Link href={`/tool/${t.slug}`} className="group-hover:text-brand transition-colors">{t.name}</Link></h3>
               <button onClick={() => openTool(t)} className="self-start text-[11px] text-brand mt-1 py-1.5 hover:underline">Read more</button>
               <p className="mt-auto pt-1 font-display font-bold text-brand text-base sm:text-lg">
                 ৳{t.price.toLocaleString()} <span className="text-mist text-[11px] font-normal">per {t.duration}</span>
               </p>
               <button
                 onClick={() => t.soon ? openSoon(t.name) : checkout({ type: "tool", id: t.id, name: t.name, price: t.price, per: `/${t.duration}`, image: t.image || null, accent: t.accent || null })}
-                className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-sm font-semibold transition-colors"
+                className="btn-shine mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-sm font-semibold transition-colors"
               >
-                {t.soon ? <><Clock size={14} className="animate-pulse" /> {s.soonBtn}</> : <><ShoppingCart size={14} /> {s.orderBtn}</>}
+                {t.soon ? <><Clock size={14} className="animate-pulse" /> {s.soonBtn}</> : <><ShoppingCart size={14} /> {s.orderBtn} <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" /></>}
               </button>
             </div>
           </motion.div>

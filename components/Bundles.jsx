@@ -20,14 +20,14 @@ function BundleCard({ b, i, s }) {
       <motion.div
         whileHover={{ y: -5 }}
         onMouseMove={spotMove}
-        className={`spot relative rounded-2xl p-6 text-center h-full flex flex-col border transition-colors ${
-          b.popular ? "border-brand bg-gradient-to-b from-brand/15 to-panel shadow-glow" : "border-line bg-panel hover:border-brand/40"
+        className={`spot relative rounded-2xl p-6 text-center h-full flex flex-col border transition-all ${
+          b.popular ? "border-brand bg-gradient-to-b from-brand/15 to-panel shadow-glow" : "border-line bg-panel hover:border-brand/40 hover:shadow-glow"
         }`}
       >
         {b.popular && (
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold bg-brand px-3 py-1 rounded-full whitespace-nowrap">{s.bundlePopular}</span>
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-semibold bg-brand px-3 py-1 rounded-full whitespace-nowrap shadow-glow">{s.bundlePopular}</span>
         )}
-        <span className="w-11 h-11 rounded-full bg-brand/15 text-brand flex items-center justify-center mx-auto mb-4">
+        <span className={`w-11 h-11 rounded-full bg-brand/15 text-brand flex items-center justify-center mx-auto mb-4 ${b.popular ? "ring-2 ring-brand/40" : ""}`}>
           <Icon name={b.icon} size={19} />
         </span>
         <h3 className="font-display font-bold">{b.name}</h3>
@@ -54,7 +54,7 @@ function BundleCard({ b, i, s }) {
         </AnimatePresence>
         <button
           onClick={() => b.soon ? openSoon(b.name) : checkout({ type: "bundle", id: b.id, name: b.name, price: b.price, per: "/month" })}
-          className={`mt-auto pt-0 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+          className={`btn-shine mt-auto pt-0 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
             b.popular ? "bg-brand hover:bg-brand-dark" : "border border-line hover:border-mist"
           }`}
           style={{ marginTop: "1.25rem" }}

@@ -1,8 +1,9 @@
 import SiteShell from "@/components/SiteShell";
 import ToolsCatalog from "@/components/ToolsCatalog";
+import JsonLd from "@/components/JsonLd";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
-import { ogFallback } from "@/lib/seo";
+import { ogFallback, siteUrl, absUrl } from "@/lib/seo";
 import { getToolInfo } from "@/lib/limits";
 import { splitDescription } from "@/lib/toolText";
 
@@ -27,12 +28,27 @@ export default async function ToolsPage({ searchParams }) {
   ]);
   const view = tools.map((t) => ({
     soon: !!info[t.id]?.soon, description: splitDescription(t.description).intro, feats: splitDescription(t.description).feats, id: t.id, slug: t.slug, name: t.name, image: t.image, price: t.price, duration: t.duration, accent: t.accent,
-    category: t.category?.name || null,
+    category: t.category?.name || null, featured: t.featured,
   }));
   const names = categories.map((c) => c.name);
   const cat = names.includes(searchParams?.cat) ? searchParams.cat : "";
   return (
     <SiteShell>
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        itemListElement: tools.slice(0, 100).map((t, i) => ({
+          "@type": "ListItem",
+          position: i + 1,
+          url: `${siteUrl(s)}/tool/${t.slug}`,
+          item: {
+            "@type": "Product",
+            name: t.name,
+            image: t.image ? absUrl(s, t.image) : undefined,
+            offers: { "@type": "Offer", priceCurrency: "BDT", price: t.price, url: `${siteUrl(s)}/tool/${t.slug}` },
+          },
+        })),
+      }} />
       <ToolsCatalog s={s} tools={view} categories={names} initialCat={cat} initialQ={String(searchParams?.q || "").slice(0, 60)} />
     </SiteShell>
   );

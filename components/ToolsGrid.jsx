@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShoppingCart, ArrowRight, Clock } from "lucide-react";
+import { ShoppingCart, ArrowRight, Clock, Flame } from "lucide-react";
 import { useCheckout } from "./CheckoutProvider";
 import Reveal from "./Reveal";
 import RichText from "./RichText";
@@ -32,17 +32,21 @@ function ToolCard({ t, label, soonLabel, soonBadge }) {
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.96 }}
-      whileHover={{ y: -4 }}
+      whileHover={{ y: -6 }}
       transition={{ duration: 0.25 }}
       onMouseMove={spotMove}
-      className="spot group rounded-2xl border border-line bg-panel overflow-hidden hover:border-brand/50 transition-colors flex flex-col"
+      className="spot group rounded-2xl border border-line bg-panel overflow-hidden hover:border-brand/60 hover:shadow-glow transition-all flex flex-col"
     >
       <div className="p-2 sm:p-3 pb-0">
-        <Link href={`/tool/${t.slug}`} className="relative block aspect-[16/10] rounded-xl overflow-hidden"><ToolCover tool={t} />{t.soon && <span className="absolute top-2 left-2 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold tracking-wide text-black shadow-lg">{soonBadge}</span>}</Link>
+        <Link href={`/tool/${t.slug}`} className="relative block aspect-[16/10] rounded-xl overflow-hidden">
+          <div className="transition-transform duration-500 group-hover:scale-[1.06] w-full h-full"><ToolCover tool={t} /></div>
+          {t.soon && <span className="absolute top-2 left-2 rounded-full bg-amber-500 px-2.5 py-1 text-[10px] font-bold tracking-wide text-black shadow-lg">{soonBadge}</span>}
+          {!t.soon && t.featured && <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-1 text-[10px] font-bold tracking-wide text-white shadow-lg"><Flame size={10} className="fill-white" /> Popular</span>}
+        </Link>
       </div>
       <div className="p-3 sm:p-4 flex-1 flex flex-col">
         <div className="flex flex-col-reverse items-start gap-1.5 xl:flex-row xl:justify-between xl:gap-2">
-          <h3 className="font-semibold leading-snug text-sm sm:text-base"><Link href={`/tool/${t.slug}`} className="hover:text-brand transition-colors">{t.name}</Link></h3>
+          <h3 className="font-semibold leading-snug text-sm sm:text-base"><Link href={`/tool/${t.slug}`} className="group-hover:text-brand transition-colors">{t.name}</Link></h3>
           {t.category && <span className="shrink-0 text-[10px] px-2 py-1 rounded-full border border-line text-mist">{t.category}</span>}
         </div>
         <p className="text-mist text-xs mt-3 leading-relaxed line-clamp-2">{t.description}</p>
@@ -54,8 +58,8 @@ function ToolCard({ t, label, soonLabel, soonBadge }) {
         <p className="mt-auto pt-3 sm:pt-4 font-display font-bold text-brand text-base sm:text-lg">
           ৳{t.price.toLocaleString()} <span className="text-mist text-xs font-normal">/{t.duration}</span>
         </p>
-        <Link href={`/tool/${t.slug}`} className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-sm font-semibold transition-colors">
-          {t.soon ? <><Clock size={14} className="animate-pulse" /> {soonLabel}</> : <><ShoppingCart size={14} /> {label} <ArrowRight size={13} /></>}
+        <Link href={`/tool/${t.slug}`} className="btn-shine mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg bg-brand hover:bg-brand-dark text-sm font-semibold transition-colors">
+          {t.soon ? <><Clock size={14} className="animate-pulse" /> {soonLabel}</> : <><ShoppingCart size={14} /> {label} <ArrowRight size={13} className="transition-transform group-hover:translate-x-1" /></>}
         </Link>
       </div>
     </motion.div>
@@ -81,10 +85,11 @@ export default function ToolsGrid({ tools, categories, startingPrice, s, channel
             <button
               key={c}
               onClick={() => setActive(c)}
-              className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                active === c ? "bg-brand border-brand text-white" : "border-line text-mist hover:border-mist hover:text-fg"
+              className={`relative px-4 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                active === c ? "border-brand text-white" : "border-line text-mist hover:border-mist hover:text-fg"
               }`}
             >
+              {active === c && <motion.span layoutId="toolCatActive" className="absolute inset-0 rounded-full bg-brand -z-10" transition={{ type: "spring", bounce: 0.25, duration: 0.5 }} />}
               {c}
             </button>
           ))}

@@ -12,7 +12,7 @@ export default async function ToolLimitsPage() {
     getToolInfo(),
   ]);
   const rows = [
-    ...tools.map((t) => ({ kind: "tool", id: t.id, name: t.name, category: t.category?.name || "", active: t.active, ...normalizeInfo(info[t.id]) })),
+    ...tools.map((t) => ({ kind: "tool", id: t.id, name: t.name, category: t.category?.name || "", active: t.active, accent: t.accent, ...normalizeInfo(info[t.id]) })),
     ...bundles.map((b) => ({ kind: "bundle", id: b.id, name: b.name, category: "Bundle", active: b.active, ...normalizeInfo(info[b.id]) })),
     ...plans.map((p) => ({ kind: "plan", id: p.id, name: p.name, category: "Custom pack", active: p.active, ...normalizeInfo(info[p.id]) })),
   ];

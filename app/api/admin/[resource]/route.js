@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin, getResource, buildData, missingRequired, slugify } from "@/lib/apiHelpers";
 import { getToolInfo, setSoon } from "@/lib/limits";
+import { getSettings } from "@/lib/settings";
+import { submitUrl } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -53,11 +55,13 @@ export async function POST(req, { params }) {
   try {
     const row = await prisma[res.model].create({ data });
     if (body.soon === true) await setSoon(row.id, true);
+    if (res.model === "tool" && row.active) getSettings().then((s) => submitUrl(s, `/tool/${row.slug}`)).catch(() => {});
     return NextResponse.json({ row });
   } catch (e) {
     if (e.code === "P2002" && data.slug) {
       data.slug += "-" + Math.random().toString(36).slice(2, 6);
       const row = await prisma[res.model].create({ data });
+      if (row.active) getSettings().then((s) => submitUrl(s, `/tool/${row.slug}`)).catch(() => {});
       return NextResponse.json({ row });
     }
     return NextResponse.json({ error: "Could not save" }, { status: 500 });

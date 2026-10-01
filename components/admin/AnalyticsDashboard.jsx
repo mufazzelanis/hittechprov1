@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Eye, Users, UserCheck, UserPlus, Radio, Search, X, ChevronDown, MapPin, Monitor, Smartphone, Tablet,
-  Globe2, Link2, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, Loader2, ExternalLink,
+  Globe2, Link2, ShoppingBag, Clock, TrendingUp, TrendingDown, Minus, Loader2, ExternalLink, Activity,
 } from "lucide-react";
 import { downloadCsv } from "./Bulk";
 
@@ -51,10 +51,17 @@ function DailyChart({ daily }) {
   const bw = (W - L) / daily.length;
   const y = (v, max) => T + (H - B - T) * (1 - v / max);
   const path = daily.map((d, i) => `${i ? "L" : "M"}${L + i * bw + bw / 2},${y(d.visitors, maxU)}`).join(" ");
+  const areaPath = `${path} L${L + (daily.length - 1) * bw + bw / 2},${H - B} L${L + bw / 2},${H - B} Z`;
   const every = Math.ceil(daily.length / 10);
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Daily page views and unique visitors" onMouseLeave={() => setHi(null)}>
+        <defs>
+          <linearGradient id="visitorArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgb(var(--brand))" stopOpacity="0.28" />
+            <stop offset="100%" stopColor="rgb(var(--brand))" stopOpacity="0" />
+          </linearGradient>
+        </defs>
         {[0, 0.5, 1].map((f) => <line key={f} x1={L} x2={W} y1={T + (H - B - T) * (1 - f)} y2={T + (H - B - T) * (1 - f)} stroke="rgb(var(--line))" strokeWidth="1" />)}
         {daily.map((d, i) => {
           const h = ((H - B - T) * d.views) / maxV;
@@ -67,6 +74,7 @@ function DailyChart({ daily }) {
             </g>
           );
         })}
+        <motion.path d={areaPath} fill="url(#visitorArea)" stroke="none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.2 }} />
         <motion.path d={path} fill="none" stroke="rgb(var(--brand))" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.8 }} />
         {daily.map((d, i) => <circle key={d.date} cx={L + i * bw + bw / 2} cy={y(d.visitors, maxU)} r={hi === i ? 5 : 3} fill="rgb(var(--brand))" stroke="rgb(var(--panel))" strokeWidth="2" />)}
       </svg>
@@ -87,18 +95,26 @@ function DailyChart({ daily }) {
   );
 }
 
-function BreakdownList({ title, icon: Icon, rows, total, empty }) {
+function BreakdownList({ title, icon: Icon, tone = "text-brand bg-brand/10", rows, total, empty }) {
   return (
     <div className="bg-panel">
-      <p className="px-4 py-3 text-xs text-mist border-b border-line flex items-center gap-1.5"><Icon size={13} /> {title}</p>
+      <p className="px-4 py-3 text-sm font-semibold border-b border-line flex items-center gap-2.5">
+        <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${tone}`}><Icon size={13} /></span>
+        {title}
+      </p>
       {(!rows || rows.length === 0) && <p className="px-4 py-6 text-sm text-mist">{empty || "No data yet."}</p>}
-      {rows?.map((r) => {
-        const pct = total ? Math.round((r.count / total) * 100) : 0;
+      {rows?.map((r, i) => {
+        // A source/referrer can rack up more hits than there are unique visitors in the period (one
+        // visitor, several visits) - the count itself is still meaningful, but a "% of total" built from
+        // it isn't a real share and must never be shown or drawn past 100%.
+        const rawPct = total ? (r.count / total) * 100 : 0;
+        const pct = Math.min(100, Math.round(rawPct));
+        const overCounted = rawPct > 100;
         return (
-          <div key={r.key} className="px-4 py-2.5 border-t border-line/60">
-            <div className="flex justify-between text-sm gap-3"><span className="truncate">{r.key}</span><span className="font-semibold shrink-0">{r.count}</span></div>
-            <div className="h-1.5 rounded-full bg-panel2 mt-1.5 overflow-hidden"><motion.div className="h-full bg-brand" initial={{ width: 0 }} animate={{ width: pct + "%" }} transition={{ duration: 0.5 }} /></div>
-          </div>
+          <motion.div key={r.key} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }} className="px-4 py-2.5 border-t border-line/60">
+            <div className="flex justify-between text-sm gap-3"><span className="truncate">{r.key}</span><span className="font-semibold shrink-0 tabular-nums">{r.count}{!overCounted && <span className="text-mist font-normal text-xs"> · {pct}%</span>}</span></div>
+            <div className="h-1.5 rounded-full bg-panel2 mt-1.5 overflow-hidden"><motion.div className="h-full rounded-full bg-gradient-to-r from-brand to-brand-light" initial={{ width: 0 }} animate={{ width: pct + "%" }} transition={{ duration: 0.6, ease: "easeOut" }} /></div>
+          </motion.div>
         );
       })}
     </div>
@@ -208,48 +224,87 @@ export default function AnalyticsDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex rounded-lg border border-line overflow-hidden text-sm">
+        <div className="relative flex rounded-lg border border-line overflow-hidden text-sm">
           {[[7, "7 days"], [30, "30 days"], [90, "90 days"]].map(([d, l]) => (
-            <button key={d} type="button" onClick={() => setDays(d)} className={`px-4 py-2 transition-colors ${days === d ? "bg-brand text-white" : "text-mist hover:text-fg"}`}>{l}</button>
+            <button key={d} type="button" onClick={() => setDays(d)} className="relative px-4 py-2 text-mist data-[on=true]:text-white transition-colors" data-on={days === d}>
+              {days === d && <motion.span layoutId="rangeActive" transition={{ type: "spring", stiffness: 450, damping: 32 }} className="absolute inset-0 bg-brand" />}
+              <span className="relative">{l}</span>
+            </button>
           ))}
         </div>
         <span className="flex-1" />
-        {S?.liveNow > 0 && (
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
-            <span className="relative flex w-2 h-2"><span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping" /><span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-400" /></span>
-            {S.liveNow} online right now
-          </span>
-        )}
+        <AnimatePresence>
+          {S?.liveNow > 0 && (
+            <motion.span initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+              <span className="relative flex w-2 h-2"><span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping" /><span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-400" /></span>
+              {S.liveNow} online right now
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* KPI cards */}
       <div className={`grid grid-cols-2 lg:grid-cols-5 gap-3 transition-opacity ${loading ? "opacity-50" : ""}`}>
-        <div className="rounded-2xl border border-line bg-panel p-5"><p className="text-xs text-mist flex items-center gap-1.5"><Eye size={13} /> Page views</p><p className="font-display font-bold text-2xl mt-1">{S ? <Count to={S.views} /> : "—"}</p></div>
-        <div className="rounded-2xl border border-brand/40 bg-brand/[0.06] p-5"><p className="text-xs text-mist flex items-center gap-1.5"><Users size={13} /> Unique visitors</p><p className="font-display font-bold text-2xl mt-1 text-brand">{S ? <Count to={S.visitors} /> : "—"}</p>{S && <Delta now={S.visitors} before={S.prevVisitors} />}</div>
-        <div className="rounded-2xl border border-line bg-panel p-5"><p className="text-xs text-mist flex items-center gap-1.5"><UserCheck size={13} /> Identified</p><p className="font-display font-bold text-2xl mt-1">{S ? <Count to={S.identified} /> : "—"}</p><p className="text-[11px] text-mist mt-1">Name, email or phone known</p></div>
-        <div className="rounded-2xl border border-line bg-panel p-5"><p className="text-xs text-mist flex items-center gap-1.5"><UserPlus size={13} /> New</p><p className="font-display font-bold text-2xl mt-1">{S ? <Count to={S.newVisitors} /> : "—"}</p><p className="text-[11px] text-mist mt-1">{S ? S.returningVisitors : "—"} returning</p></div>
-        <div className="rounded-2xl border border-line bg-panel p-5"><p className="text-xs text-mist flex items-center gap-1.5"><Radio size={13} /> Live now</p><p className="font-display font-bold text-2xl mt-1">{S ? <Count to={S.liveNow} /> : "—"}</p><p className="text-[11px] text-mist mt-1">Last 5 minutes</p></div>
+        <div className="rounded-2xl border border-line bg-panel p-5">
+          <div className="flex items-center justify-between"><p className="text-xs text-mist">Page views</p><span className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-400 flex items-center justify-center shrink-0"><Eye size={14} /></span></div>
+          <p className="font-display font-bold text-2xl mt-2">{S ? <Count to={S.views} /> : "—"}</p>
+        </div>
+        <div className="relative overflow-hidden rounded-2xl border border-brand/40 bg-gradient-to-br from-brand/10 via-panel to-panel p-5 shadow-[0_0_30px_-18px_rgb(var(--brand))]">
+          <div className="orb absolute -top-8 -right-8 w-28 h-28 rounded-full bg-brand/20 blur-[40px] pointer-events-none" aria-hidden />
+          <div className="relative flex items-center justify-between"><p className="text-xs text-mist">Unique visitors</p><span className="w-8 h-8 rounded-lg bg-brand/15 text-brand flex items-center justify-center shrink-0"><Users size={14} /></span></div>
+          <p className="relative font-display font-bold text-2xl mt-2 text-brand">{S ? <Count to={S.visitors} /> : "—"}</p>
+          {S && <span className="relative block mt-1"><Delta now={S.visitors} before={S.prevVisitors} /></span>}
+        </div>
+        <div className="rounded-2xl border border-line bg-panel p-5">
+          <div className="flex items-center justify-between"><p className="text-xs text-mist">Identified</p><span className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center shrink-0"><UserCheck size={14} /></span></div>
+          <p className="font-display font-bold text-2xl mt-2">{S ? <Count to={S.identified} /> : "—"}</p>
+          <p className="text-[11px] text-mist mt-1">Name, email or phone known</p>
+        </div>
+        <div className="rounded-2xl border border-line bg-panel p-5">
+          <div className="flex items-center justify-between"><p className="text-xs text-mist">New</p><span className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0"><UserPlus size={14} /></span></div>
+          <p className="font-display font-bold text-2xl mt-2">{S ? <Count to={S.newVisitors} /> : "—"}</p>
+          <p className="text-[11px] text-mist mt-1">{S ? S.returningVisitors : "—"} returning</p>
+        </div>
+        <div className="rounded-2xl border border-line bg-panel p-5">
+          <div className="flex items-center justify-between"><p className="text-xs text-mist">Live now</p><span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${S?.liveNow > 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-panel2 text-mist"}`}><Radio size={14} className={S?.liveNow > 0 ? "animate-pulse" : ""} /></span></div>
+          <p className="font-display font-bold text-2xl mt-2">{S ? <Count to={S.liveNow} /> : "—"}</p>
+          <p className="text-[11px] text-mist mt-1">Last 5 minutes</p>
+        </div>
       </div>
 
       {/* chart + live feed */}
       <div className="grid xl:grid-cols-3 gap-4">
         <div className="xl:col-span-2 rounded-2xl border border-line bg-panel p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-3"><h2 className="font-display font-semibold">Traffic per day</h2>{loading && <Loader2 size={16} className="animate-spin text-mist" />}</div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-display font-semibold flex items-center gap-2"><span className="w-7 h-7 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0"><Activity size={13} /></span> Traffic per day</h2>
+            {loading && <Loader2 size={16} className="animate-spin text-mist" />}
+          </div>
           {data ? <DailyChart daily={data.daily} /> : <div className="shimmer h-52" />}
         </div>
         <div className="rounded-2xl border border-line bg-panel overflow-hidden flex flex-col">
-          <div className="flex items-center gap-2 px-4 h-12 border-b border-line shrink-0">
-            <Radio size={14} className="text-emerald-400" />
+          <div className="flex items-center gap-2.5 px-4 h-12 border-b border-line shrink-0">
+            <span className="relative flex w-2 h-2"><span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping" /><span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-400" /></span>
             <p className="font-display font-semibold text-sm flex-1">Live activity</p>
             <button type="button" onClick={() => setLiveOn((o) => !o)} className="text-[11px] text-mist hover:text-fg">{liveOn ? "Pause" : "Resume"}</button>
           </div>
           <div className="max-h-[280px] xl:max-h-[320px] overflow-y-auto flex-1">
-            {live.length === 0 && <p className="px-4 py-8 text-center text-xs text-mist">Watching for visitors… new page views will appear here the instant they happen.</p>}
+            {live.length === 0 && (
+              <div className="px-4 py-10 text-center">
+                <span className="relative inline-flex w-10 h-10 rounded-full bg-panel2 items-center justify-center mb-3">
+                  <span className="absolute inset-0 rounded-full border-2 border-emerald-400/30 animate-ping" />
+                  <Radio size={16} className="text-mist" />
+                </span>
+                <p className="text-xs text-mist leading-relaxed">Watching for visitors… new page views will appear here the instant they happen.</p>
+              </div>
+            )}
             <AnimatePresence initial={false}>
               {(liveOn ? live : []).map((r) => (
-                <motion.div key={r.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="px-4 py-2.5 border-b border-line/60 text-xs">
-                  <p className="truncate"><span className="font-medium">{r.name || (r.city ? `${r.city}${r.country ? ", " + r.country : ""}` : "Someone")}</span> <span className="text-mist">viewed</span> <span className="font-mono text-brand">{r.path}</span></p>
-                  <p className="text-mist mt-0.5">{[r.device, r.browser].filter(Boolean).join(" · ") || "—"} · {timeAgo(r.createdAt)}</p>
+                <motion.div key={r.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="flex items-start gap-2.5 px-4 py-2.5 border-b border-line/60 text-xs hover:bg-panel2/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand mt-1.5 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="truncate"><span className="font-medium">{r.name || (r.city ? `${r.city}${r.country ? ", " + r.country : ""}` : "Someone")}</span> <span className="text-mist">viewed</span> <span className="font-mono text-brand">{r.path}</span></p>
+                    <p className="text-mist mt-0.5">{[r.device, r.browser].filter(Boolean).join(" · ") || "—"} · {timeAgo(r.createdAt)}</p>
+                  </div>
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -259,18 +314,18 @@ export default function AnalyticsDashboard() {
 
       {/* breakdowns */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Top pages" icon={Eye} rows={data?.topPages} total={S?.views} /></div>
-        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Traffic sources" icon={Link2} rows={[...(data?.topSources || []), ...(data?.topReferrers || [])].slice(0, 8)} total={S?.visitors} empty="All direct traffic so far." /></div>
-        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Countries" icon={Globe2} rows={data?.countries} total={S?.visitors} empty="Location not resolved yet." /></div>
-        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Devices" icon={Smartphone} rows={data?.devices} total={S?.visitors} /></div>
-        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Browsers" icon={Monitor} rows={data?.browsers} total={S?.visitors} /></div>
-        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Operating systems" icon={Monitor} rows={data?.os} total={S?.visitors} /></div>
+        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Top pages" icon={Eye} tone="text-sky-400 bg-sky-500/10" rows={data?.topPages} total={S?.views} /></div>
+        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Traffic sources" icon={Link2} tone="text-violet-400 bg-violet-500/10" rows={[...(data?.topSources || []), ...(data?.topReferrers || [])].slice(0, 8)} total={S?.visitors} empty="All direct traffic so far." /></div>
+        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Countries" icon={Globe2} tone="text-emerald-400 bg-emerald-500/10" rows={data?.countries} total={S?.visitors} empty="Location not resolved yet." /></div>
+        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Devices" icon={Smartphone} tone="text-amber-400 bg-amber-500/10" rows={data?.devices} total={S?.visitors} /></div>
+        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Browsers" icon={Monitor} tone="text-pink-400 bg-pink-500/10" rows={data?.browsers} total={S?.visitors} /></div>
+        <div className="rounded-2xl border border-line overflow-hidden"><BreakdownList title="Operating systems" icon={Monitor} tone="text-indigo-400 bg-indigo-500/10" rows={data?.os} total={S?.visitors} /></div>
       </div>
 
       {/* visitor sessions table */}
       <div className="rounded-2xl border border-line bg-panel overflow-hidden">
         <div className="flex flex-wrap items-center gap-3 p-4 border-b border-line">
-          <h2 className="font-display font-semibold">Visitor sessions</h2>
+          <h2 className="font-display font-semibold flex items-center gap-2"><span className="w-7 h-7 rounded-lg bg-brand/10 text-brand flex items-center justify-center shrink-0"><Users size={13} /></span> Visitor sessions</h2>
           <span className="text-xs text-mist">{sessions ? sessions.total.toLocaleString() : "…"} in this period</span>
           <span className="flex-1" />
           <div className="relative w-full sm:w-64">

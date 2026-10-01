@@ -29,10 +29,10 @@ export default function CustomPack({ plans, s, channels = [] }) {
                 whileHover={{ rotate: 0, y: -6 }}
                 initial={{ rotate: tilt[i % 4] }}
                 onMouseMove={spotMove}
-                className="spot relative h-full rounded-2xl border border-line bg-panel p-6 flex flex-col"
+                className={`spot relative h-full rounded-2xl border bg-panel p-6 flex flex-col transition-shadow hover:shadow-glow ${p.popular ? "border-gold/50" : "border-line"}`}
               >
                 {p.popular && (
-                  <span className="absolute -top-3 -right-2 rotate-6 bg-gold text-black text-[11px] font-bold px-3 py-1 rounded-lg">{s.planPopular}</span>
+                  <span className="absolute -top-3 -right-2 rotate-6 bg-gold text-black text-[11px] font-bold px-3 py-1 rounded-lg shadow-lg">{s.planPopular}</span>
                 )}
                 <span className="w-10 h-10 rounded-full border border-line text-brand flex items-center justify-center mb-4"><Icon name={p.icon} size={17} /></span>
                 <h3 className="font-display font-bold">{p.name}</h3>
@@ -44,7 +44,7 @@ export default function CustomPack({ plans, s, channels = [] }) {
                 </div>
                 <button
                   onClick={() => p.soon ? openSoon(p.name) : checkout({ type: "plan", id: p.id, name: p.name, price: p.price, per: "/month" })}
-                  className={`mt-5 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  className={`btn-shine mt-5 w-full py-2.5 rounded-lg text-sm font-semibold transition-colors ${
                     p.popular ? "bg-gold text-black hover:brightness-110" : "bg-panel2 border border-line hover:border-mist"
                   }`}
                 >

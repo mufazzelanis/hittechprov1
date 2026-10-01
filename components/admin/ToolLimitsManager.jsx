@@ -1,14 +1,15 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Search, Check, Loader2, Clock, SlidersHorizontal, ShoppingBag } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Search, Check, Loader2, Clock, SlidersHorizontal, ShoppingBag, Layers, CheckCircle2, Gauge, Wrench, PowerOff, AlertTriangle } from "lucide-react";
 import { useSelection, Check3, BulkBar, Modal, plural } from "./Bulk";
 
 const STATUSES = [
-  ["active", "Active", "bg-emerald-500/15 text-emerald-300"],
-  ["limited", "Limited", "bg-amber-500/15 text-amber-300"],
-  ["maintenance", "Maintenance", "bg-orange-500/15 text-orange-300"],
-  ["down", "Down", "bg-red-500/15 text-red-300"],
+  ["active", "Active", "bg-emerald-500/15 text-emerald-300", CheckCircle2, "text-emerald-400 bg-emerald-500/10"],
+  ["limited", "Limited", "bg-amber-500/15 text-amber-300", Gauge, "text-amber-400 bg-amber-500/10"],
+  ["maintenance", "Maintenance", "bg-orange-500/15 text-orange-300", Wrench, "text-orange-400 bg-orange-500/10"],
+  ["down", "Down", "bg-red-500/15 text-red-300", PowerOff, "text-red-400 bg-red-500/10"],
 ];
 const ACCESS = [["", "—"], ["Private", "Private"], ["Shared", "Shared"]];
 const KIND = { tool: "Tools", bundle: "Bundles", plan: "Custom packs" };
@@ -24,6 +25,11 @@ export default function ToolLimitsManager({ initial }) {
   const [bp, setBp] = useState({});
 
   const counts = useMemo(() => ({ ...Object.fromEntries(STATUSES.map(([k]) => [k, rows.filter((r) => r.kind === "tool" && r.status === k).length])), soon: rows.filter((r) => r.soon).length }), [rows]);
+  const toolCount = useMemo(() => rows.filter((r) => r.kind === "tool").length, [rows]);
+  const alerts = useMemo(() => ({
+    down: rows.filter((r) => r.kind === "tool" && r.status === "down"),
+    maintenance: rows.filter((r) => r.kind === "tool" && r.status === "maintenance"),
+  }), [rows]);
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
     return rows.filter((r) => (!kind || r.kind === kind) && (!filter || (filter === "soon" ? r.soon : r.status === filter)) && (!s || r.name.toLowerCase().includes(s)));
@@ -78,6 +84,48 @@ export default function ToolLimitsManager({ initial }) {
         <p className="flex gap-2"><Clock size={16} className="text-amber-300 shrink-0 mt-0.5" /> <span><b className="text-fg">Coming soon</b> (the amber switch): the product stays visible on the site, but every buy button (Get Access, Order Now, Add to Cart, Buy now, Bundles) shows "Coming soon" and orders for it are blocked. Switch it off and the product sells normally again.</span></p>
       </div>
 
+      <AnimatePresence>
+        {(alerts.down.length > 0 || alerts.maintenance.length > 0) && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+            <div className="rounded-2xl border border-red-500/40 bg-red-500/[0.06] p-4 sm:p-5 flex items-start gap-3">
+              <span className="w-9 h-9 rounded-lg bg-red-500/15 text-red-400 flex items-center justify-center shrink-0"><AlertTriangle size={18} /></span>
+              <div className="text-sm min-w-0">
+                <p className="font-semibold text-fg mb-1">
+                  Customers can't buy {alerts.down.length + alerts.maintenance.length} product{alerts.down.length + alerts.maintenance.length > 1 ? "s" : ""} right now
+                </p>
+                <p className="text-mist leading-relaxed">
+                  {alerts.down.length > 0 && <>Down: <b className="text-red-300">{alerts.down.map((r) => r.name).join(", ")}</b></>}
+                  {alerts.down.length > 0 && alerts.maintenance.length > 0 && <span className="mx-1.5 text-line">•</span>}
+                  {alerts.maintenance.length > 0 && <>Maintenance: <b className="text-orange-300">{alerts.maintenance.map((r) => r.name).join(", ")}</b></>}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        {[
+          { label: "Total tools", value: toolCount, icon: Layers, tone: "text-sky-400 bg-sky-500/10" },
+          ...STATUSES.map(([k, l, , Icon, tone]) => ({ label: l, value: counts[k], icon: Icon, tone, key: k })),
+          { label: "Coming soon", value: counts.soon, icon: Clock, tone: "text-violet-400 bg-violet-500/10", key: "soon" },
+        ].map((c) => {
+          const active = c.key !== undefined && filter === c.key;
+          const clickable = c.key !== undefined;
+          const Comp = clickable ? "button" : "div";
+          return (
+            <Comp key={c.label} type={clickable ? "button" : undefined} onClick={clickable ? () => setFilter((f) => (f === c.key ? "" : c.key)) : undefined}
+              className={`rounded-xl border p-3 sm:p-3.5 text-left bg-panel transition-colors ${active ? "border-brand ring-1 ring-brand/50" : "border-line"} ${clickable ? "hover:border-mist cursor-pointer" : ""}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] sm:text-xs text-mist truncate">{c.label}</span>
+                <span className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center shrink-0 ${c.tone}`}><c.icon size={12} /></span>
+              </div>
+              <p className="font-display font-bold text-lg sm:text-xl mt-1 sm:mt-1.5">{c.value}</p>
+            </Comp>
+          );
+        })}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-mist" />
@@ -87,11 +135,7 @@ export default function ToolLimitsManager({ initial }) {
           <Check3 checked={pick.all} indeterminate={pick.some} onChange={pick.toggleAll} label="Select all shown products" /> Select all {list.length}
         </label>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setFilter("")} className={`px-3.5 py-2 rounded-lg text-xs border ${filter === "" ? "bg-brand border-brand" : "border-line text-mist hover:text-fg"}`}>All {rows.length}</button>
-          <button onClick={() => setFilter(filter === "soon" ? "" : "soon")} className={`px-3.5 py-2 rounded-lg text-xs border ${filter === "soon" ? "bg-amber-500 border-amber-500 text-black" : "border-amber-500/40 text-amber-300 hover:bg-amber-500/10"}`}>Coming soon {counts.soon}</button>
-          {STATUSES.map(([k, l]) => (
-            <button key={k} onClick={() => setFilter(filter === k ? "" : k)} className={`px-3.5 py-2 rounded-lg text-xs border ${filter === k ? "bg-brand border-brand" : "border-line text-mist hover:text-fg"}`}>{l} {counts[k]}</button>
-          ))}
+          {filter && <button onClick={() => setFilter("")} className="px-3.5 py-2 rounded-lg text-xs border border-line text-mist hover:text-fg">Clear filter ✕</button>}
           <span className="hidden sm:block w-px h-8 bg-line mx-1" />
           {Object.entries(KIND).map(([k, l]) => (
             <button key={k} onClick={() => setKind(kind === k ? "" : k)} className={`px-3.5 py-2 rounded-lg text-xs border ${kind === k ? "bg-brand border-brand" : "border-line text-mist hover:text-fg"}`}>{l}</button>
@@ -108,6 +152,12 @@ export default function ToolLimitsManager({ initial }) {
             <div key={r.kind + r.id} className={`rounded-2xl border p-4 grid gap-3 lg:items-center transition-colors ${pick.has(r.id) ? "bg-brand/[0.07] border-brand/60" : r.soon ? "bg-panel border-amber-500/40" : "bg-panel border-line"} ${isTool ? "lg:grid-cols-[minmax(150px,1.1fr)_130px_150px_120px_1.3fr_1.3fr_24px]" : "lg:grid-cols-[minmax(150px,1.1fr)_130px_1fr_24px]"}`}>
               <div className="min-w-0 flex items-center gap-3">
                 <Check3 checked={pick.has(r.id)} onChange={(e) => pick.toggle(r.id, e)} label={`Select ${r.name}`} />
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold text-white shrink-0"
+                  style={{ background: isTool ? `linear-gradient(135deg, ${r.accent || "#888"}, ${r.accent || "#888"}99)` : "linear-gradient(135deg, #71717a, #71717a99)" }}
+                >
+                  {r.name.trim().charAt(0).toUpperCase()}
+                </div>
                 <div className="min-w-0">
                   <p className="font-medium truncate">{r.name}</p>
                   <p className="text-[11px] text-mist">{r.category || "—"}{!r.active && " · hidden on site"}</p>

@@ -4,6 +4,8 @@ import { requireAdmin, getResource, buildData, missingRequired } from "@/lib/api
 import { capiOnPaid } from "@/lib/fb";
 import { setSoon, infoKey } from "@/lib/limits";
 import { logOrderEvent } from "@/lib/orderEvents";
+import { getSettings } from "@/lib/settings";
+import { submitUrl } from "@/lib/indexnow";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,11 @@ export async function PUT(req, { params }) {
     if (res.model === "order" && data.status) {
       capiOnPaid(row);
       if (prevStatus && prevStatus !== data.status) logOrderEvent(params.id, "status", `Status changed from ${prevStatus} to ${data.status}`, session.name).catch(() => {});
+    }
+    // A price/visibility/description change is exactly the kind of update worth telling search engines
+    // about right away, rather than waiting for their next scheduled crawl.
+    if (res.model === "tool" && row.active && (data.price !== undefined || data.active !== undefined || data.name !== undefined || data.description !== undefined)) {
+      getSettings().then((s) => submitUrl(s, `/tool/${row.slug}`)).catch(() => {});
     }
     return NextResponse.json({ row });
   } catch {
