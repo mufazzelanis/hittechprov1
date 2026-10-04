@@ -7,13 +7,16 @@ import { logOrderEvent } from "@/lib/orderEvents";
 import { getSettings } from "@/lib/settings";
 import { submitUrl } from "@/lib/indexnow";
 
+import { guard, audit } from "@/lib/adminAuth";
+import { resourcePerm } from "@/lib/resources";
+
 export const dynamic = "force-dynamic";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
 export async function PUT(req, { params }) {
-  const session = requireAdmin();
-  if (!session) return deny();
+  const { admin: session, res: denied } = await guard(resourcePerm(params.resource, "manage"));
+  if (denied) return denied;
   const res = getResource(params.resource);
   if (!res) return NextResponse.json({ error: "Unknown resource" }, { status: 404 });
 
@@ -38,6 +41,8 @@ export async function PUT(req, { params }) {
     if (res.model === "tool" && row.active && (data.price !== undefined || data.active !== undefined || data.name !== undefined || data.description !== undefined)) {
       getSettings().then((s) => submitUrl(s, `/tool/${row.slug}`)).catch(() => {});
     }
+    const changed = Object.keys(data).filter((k) => k !== "status" || prevStatus !== data.status);
+    audit(session, `${params.resource}.update`, { target: row.name || row.title || row.question || (row.number ? "#" + row.number : params.id), detail: prevStatus && prevStatus !== data.status ? `status ${prevStatus} → ${data.status}` : changed.length ? `changed: ${changed.join(", ")}` : null, req });
     return NextResponse.json({ row });
   } catch {
     return NextResponse.json({ error: "Could not update" }, { status: 500 });
@@ -45,12 +50,14 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(_req, { params }) {
-  if (!requireAdmin()) return deny();
+  const { admin, res: denied } = await guard(resourcePerm(params.resource, "manage"));
+  if (denied) return denied;
   const res = getResource(params.resource);
   if (!res) return NextResponse.json({ error: "Unknown resource" }, { status: 404 });
   if (res.model === "order") return NextResponse.json({ error: "Orders cannot be deleted. Set the status to Cancelled or Refunded instead." }, { status: 405 });
   try {
-    await prisma[res.model].delete({ where: { id: params.id } });
+    const gone = await prisma[res.model].delete({ where: { id: params.id } });
+    audit(admin, `${params.resource}.delete`, { target: gone.name || gone.title || gone.question || params.id, req: _req });
     if (["tool", "bundle", "packPlan"].includes(res.model)) await prisma.setting.deleteMany({ where: { key: infoKey(params.id) } });
     return NextResponse.json({ ok: true });
   } catch {

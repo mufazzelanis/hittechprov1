@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getOffers, normalizeOffer, offerKey } from "@/lib/offers";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,12 +15,12 @@ const save = (id, data, created) =>
   });
 
 export async function GET() {
-  if (!getSession()) return deny();
+  { const g = await guard("growth.view"); if (g.res) return g.res; }
   return NextResponse.json({ offers: await getOffers() });
 }
 
 export async function POST(req) {
-  if (!getSession()) return deny();
+  { const g = await guard("growth.manage"); if (g.res) return g.res; }
   const data = normalizeOffer(await req.json().catch(() => ({})));
   if (!data.name) return NextResponse.json({ error: "Offer name is required" }, { status: 400 });
   const id = "o" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -28,7 +29,7 @@ export async function POST(req) {
 }
 
 export async function PUT(req) {
-  if (!getSession()) return deny();
+  { const g = await guard("growth.manage"); if (g.res) return g.res; }
   const b = await req.json().catch(() => ({}));
   const id = String(b.id || "");
   const row = id ? await prisma.setting.findUnique({ where: { key: offerKey(id) } }) : null;
@@ -41,7 +42,7 @@ export async function PUT(req) {
 }
 
 export async function DELETE(req) {
-  if (!getSession()) return deny();
+  { const g = await guard("growth.manage"); if (g.res) return g.res; }
   const id = new URL(req.url).searchParams.get("id") || "";
   await prisma.setting.deleteMany({ where: { key: offerKey(id) } });
   return NextResponse.json({ ok: true });

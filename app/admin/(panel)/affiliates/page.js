@@ -2,12 +2,14 @@ import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import AffiliateToggle from "@/components/admin/AffiliateToggle";
+import { requirePage } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 const tk = (n) => `৳${Number(n).toLocaleString()}`;
 
 export default async function AffiliatesPage() {
+  const admin = await requirePage("affiliates.view");
   const [s, users, orders, payouts] = await Promise.all([
     getSettings(),
     prisma.user.findMany({ where: { refCode: { not: null } }, orderBy: { createdAt: "desc" } }),

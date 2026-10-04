@@ -16,6 +16,7 @@ import { verifyEmail } from "@/lib/emailServer";
 import { checkTxn, methodKind } from "@/lib/txn";
 import { walletBalance } from "@/lib/wallet";
 import { logOrderEvent } from "@/lib/orderEvents";
+import { PAYONEER_METHOD, usdOf } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -38,11 +39,15 @@ export async function POST(req) {
   const s = await getSettings({ withSecrets: true });
   const method = clip(b.method, 60);
   const isWallet = method === WALLET_METHOD;
+  // Payoneer (international) buyers pay AFTER ordering, through a payment request the admin sends, so
+  // there is no Transaction ID to collect yet.
+  const isPayoneer = method === PAYONEER_METHOD;
+  if (isPayoneer && s.payoneerOn !== "true") return fail("Please choose a payment method.");
 
   // Paying from the wallet skips the whole manual-verification dance (method picker + Transaction ID) -
   // the money was already verified once, when the topup that funds it got approved.
   let txnId = null;
-  if (!isWallet) {
+  if (!isWallet && !isPayoneer) {
     const options = getPaymentOptions(s);
     if (options.length && !options.some((o) => o.name === method)) return fail("Please choose a payment method.");
     const tx = checkTxn(methodKind(method), clip(b.txnId, 400));
@@ -90,6 +95,13 @@ export async function POST(req) {
   }
   const amount = priced.subtotal - discount;
 
+  // The dollar total: each line's own $ price (or its ৳ price at the site rate), with any coupon applied
+  // in the same proportion as the ৳ discount. Fixed now, so the payment request matches what was shown.
+  const lineUsd = priced.lines.map((l) => usdOf(l.priceUsd, l.price, s.usdRate));
+  const usdSubtotal = lineUsd.every((x) => x != null) ? lineUsd.reduce((n, x) => n + x, 0) : null;
+  const usdAmount = usdSubtotal == null ? null : Math.ceil(usdSubtotal * (priced.subtotal ? amount / priced.subtotal : 1) * 100) / 100;
+  if (isPayoneer && !(usdAmount > 0)) return fail("Dollar prices aren't set up for these items yet. Please choose another payment method or contact us.");
+
   if (isWallet) {
     const balance = await walletBalance(user.id);
     if (balance < amount) return fail(`Insufficient wallet balance. Your balance is ৳${balance.toLocaleString()}.`, 402);
@@ -116,6 +128,8 @@ export async function POST(req) {
       itemType: priced.lines.length > 1 ? "cart" : priced.lines[0].type,
       itemName: priced.lines.map((l) => l.name).join(", ").slice(0, 190),
       amount,
+      usdAmount: isPayoneer || priced.lines.some((l) => l.type === "product" || l.type === "service") ? usdAmount : null,
+      lines: priced.lines.map(({ smm, ...l }) => l),
       name,
       email,
       phone,
@@ -151,15 +165,17 @@ export async function POST(req) {
   const fbNow = !!s.fbPixelId && s.fbPurchaseMode !== "paid";
   if (fbNow && s.fbCapiToken) sendCapi(s, [purchaseEvent({ order, ctx, url: evUrl })]).catch(() => {});
 
+  if (isPayoneer) await logOrderEvent(order.id, "status", `Payoneer order - send a $${usdAmount.toFixed(2)} payment request to ${email}`, null).catch(() => {});
+
   pushNotification({
     type: smmLine ? "smm" : "order",
-    title: smmLine ? `New SMM order #${order.number} · ৳${amount.toLocaleString()}` : `New order #${order.number} · ৳${amount.toLocaleString()}`,
-    body: smmLine ? `${name} · ${order.itemName} - confirm payment, then Send to SMMIU` : `${name} · ${order.itemName}`,
+    title: smmLine ? `New SMM order #${order.number} · ৳${amount.toLocaleString()}` : isPayoneer ? `New Payoneer order #${order.number} · $${usdAmount.toFixed(2)}` : `New order #${order.number} · ৳${amount.toLocaleString()}`,
+    body: smmLine ? `${name} · ${order.itemName} - confirm payment, then Send to SMMIU` : isPayoneer ? `${name} · ${order.itemName} - send the Payoneer payment link` : `${name} · ${order.itemName}`,
     href: `/admin/orders?q=${order.number}`,
   }).catch(() => {});
   identifyVisitor(b.visitorId, { name, email, phone }).catch(() => {});
 
-  const res = NextResponse.json({ ok: true, number: order.number, amount, ...(fbNow ? { fb: { eventId: `purchase-${order.id}` } } : {}) });
+  const res = NextResponse.json({ ok: true, number: order.number, amount, usdAmount: order.usdAmount, ...(fbNow ? { fb: { eventId: `purchase-${order.id}` } } : {}) });
   if (newToken) {
     res.cookies.set(userCookieName(), newToken, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 });
   }

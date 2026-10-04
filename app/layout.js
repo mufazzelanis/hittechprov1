@@ -6,6 +6,7 @@ import PWARegister from "@/components/PWARegister";
 import InstallPrompt from "@/components/InstallPrompt";
 import FacebookPixel from "@/components/FacebookPixel";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import PinterestTag from "@/components/PinterestTag";
 import LoadingSystem from "@/components/LoadingSystem";
 import VisitTracker from "@/components/VisitTracker";
 import JsonLd from "@/components/JsonLd";
@@ -36,7 +37,11 @@ export async function generateMetadata() {
     twitter: { card: "summary_large_image", title: s.seoTitle, description: s.seoDescription, images: [ogFallback(s)] },
     verification: {
       google: s.googleVerification || undefined,
-      other: s.bingVerification ? { "msvalidate.01": s.bingVerification } : undefined,
+      other: {
+        ...(s.bingVerification ? { "msvalidate.01": s.bingVerification } : {}),
+        // Pinterest "Claim website" HTML tag: <meta name="p:domain_verify" content="...">
+        ...(/^[a-zA-Z0-9]{10,64}$/.test(s.pinterestVerify || "") ? { "p:domain_verify": s.pinterestVerify } : {}),
+      },
     },
   };
 }
@@ -84,7 +89,7 @@ export default async function RootLayout({ children }) {
   };
 
   return (
-    <html lang="en" suppressHydrationWarning data-fbp={s.fbPixelId ? "1" : undefined} data-ga={/^G-[A-Z0-9]{6,14}$/.test(s.gaId) ? "1" : undefined}>
+    <html lang="en" suppressHydrationWarning data-fbp={s.fbPixelId ? "1" : undefined} data-ga={/^G-[A-Z0-9]{6,14}$/.test(s.gaId) ? "1" : undefined} data-pin={/^\d{6,20}$/.test(s.pinterestTagId || "") ? "1" : undefined}>
       <head>
         {/* Sets data-theme before the page paints, so there is never a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: NO_FLASH_SCRIPT }} />
@@ -98,6 +103,7 @@ export default async function RootLayout({ children }) {
             <CartProvider>{children}</CartProvider>
             <FacebookPixel pixelId={s.fbPixelId} />
             <GoogleAnalytics id={s.gaId} />
+            <PinterestTag tagId={s.pinterestTagId} />
             <PWARegister />
             <InstallPrompt />
           </LangProvider>

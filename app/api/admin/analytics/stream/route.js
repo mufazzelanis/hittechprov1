@@ -1,12 +1,13 @@
 import { getSession } from "@/lib/auth";
 import { notifyBus } from "@/lib/notify";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 // Live feed for the Analytics page: every new page view, pushed the instant it happens (same
 // mechanism as the admin notification bell - see app/api/admin/notifications/stream/route.js).
 export async function GET() {
-  if (!getSession()) return new Response("Unauthorized", { status: 401 });
+  { const g = await guard("analytics.view"); if (g.res) return g.res; }
 
   const enc = new TextEncoder();
   let onVisit;

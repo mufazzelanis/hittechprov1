@@ -4,18 +4,20 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/apiHelpers";
 import { logOrderEvent } from "@/lib/orderEvents";
+import { guard } from "@/lib/adminAuth";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
 // The order's timeline: auto-logged status changes plus admin notes and delivery-email records.
 export async function GET(_req, { params }) {
-  if (!requireAdmin()) return deny();
+  { const g = await guard("orders.view"); if (g.res) return g.res; }
   const rows = await prisma.orderEvent.findMany({ where: { orderId: params.id }, orderBy: { createdAt: "desc" } });
   return NextResponse.json({ rows });
 }
 
 export async function POST(req, { params }) {
-  const session = requireAdmin();
+  const { admin: session, res: denied } = await guard("orders.manage");
+  if (denied) return denied;
   if (!session) return deny();
   const { message } = await req.json().catch(() => ({}));
   const clean = String(message || "").trim();

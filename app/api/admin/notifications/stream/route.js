@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { notifyBus } from "@/lib/notify";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,7 @@ export const dynamic = "force-dynamic";
 // notification the instant it happens, with no polling delay. The browser's EventSource reconnects
 // on its own if the connection drops; the admin bell also polls as a fallback (see NotificationBell.jsx).
 export async function GET() {
-  if (!getSession()) return new Response("Unauthorized", { status: 401 });
+  { const g = await guard("dashboard.view"); if (g.res) return g.res; }
 
   const enc = new TextEncoder();
   let onNew;

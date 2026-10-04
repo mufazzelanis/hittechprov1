@@ -13,7 +13,10 @@ const OPTIONS = [
 
 // Compact icon button + popover (nav bars). `variant="row"` renders a full-width labelled row instead,
 // for a mobile menu or a sidebar where a floating popover would feel out of place.
-export default function ThemeToggle({ variant = "icon", className = "" }) {
+// `align="start"` opens the menu to the right of the button (its left edge anchored to the button's left
+// edge) instead of the default right-aligned popover - for a button sitting at the screen's left edge
+// (e.g. a collapsed sidebar rail), where a right-aligned popover has nowhere to go and renders off-screen.
+export default function ThemeToggle({ variant = "icon", className = "", align = "end" }) {
   const { mode, resolved, setMode } = useTheme();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -74,7 +77,7 @@ export default function ThemeToggle({ variant = "icon", className = "" }) {
           <motion.div
             role="menu" aria-label="Theme"
             initial={{ opacity: 0, y: -6, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.96 }} transition={{ duration: 0.15 }}
-            className="absolute right-0 top-full mt-2 z-50 w-44 rounded-xl border border-line bg-panel p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)]"
+            className={`absolute z-50 w-44 rounded-xl border border-line bg-panel p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)] ${align === "start" ? "left-full bottom-0 ml-2" : "right-0 top-full mt-2"}`}
           >
             {OPTIONS.map(([k, label, I]) => (
               <button key={k} type="button" role="menuitemradio" aria-checked={mode === k} onClick={(e) => choose(k, e)} className={`w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors ${mode === k ? "bg-brand/15 text-fg" : "text-mist hover:text-fg hover:bg-panel2"}`}>

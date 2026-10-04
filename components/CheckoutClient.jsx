@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ShoppingBag, Trash2, Loader2, CheckCircle2, Tag, Lock, ShieldCheck, AlertTriangle, MessageCircle, Send, Phone, Mail, Check, ArrowRight, XCircle, Info, User, Smartphone, KeyRound, Eye, EyeOff, StickyNote, LogIn, UserPlus, ChevronDown, Copy, Receipt, Sparkles, HelpCircle, Landmark, Bitcoin, Wallet, Clock, X, Ticket, BadgeCheck, Headphones } from "lucide-react";
+import { ShoppingBag, Trash2, Loader2, CheckCircle2, Tag, Lock, ShieldCheck, AlertTriangle, MessageCircle, Send, Phone, Mail, Check, ArrowRight, XCircle, Info, User, Smartphone, KeyRound, Eye, EyeOff, StickyNote, LogIn, UserPlus, ChevronDown, Copy, Receipt, Sparkles, HelpCircle, Landmark, Bitcoin, Wallet, Clock, X, Ticket, BadgeCheck, Headphones, CreditCard } from "lucide-react";
 import { useCart } from "./CheckoutProvider";
 import { track } from "@/lib/track";
 import { withText, fillMsg } from "@/lib/wa";
@@ -14,6 +14,7 @@ import { PHONE_CODES as CODES, checkPhone, splitPhone } from "@/lib/phone";
 import { checkEmail } from "@/lib/email";
 import { checkTxn, methodKind, findCopyables, findNetwork, METHOD_INFO } from "@/lib/txn";
 import { toUsd, WALLET_METHOD } from "@/lib/payments";
+import { PAYONEER_METHOD, usdOf } from "@/lib/catalog";
 
 // Cart items are display-ready objects (name/price/per already resolved for the UI); the server only
 // ever trusts type+id (or, for an SMM line, serviceId/qty/link) and re-prices everything itself.
@@ -535,11 +536,12 @@ function Section({ n, title, extra, done, children }) {
   );
 }
 
-export default function CheckoutClient({ options, user, contact, wa: waT, usd, wallet = 0 }) {
+export default function CheckoutClient({ options, user, contact, wa: waT, usd, wallet = 0, payoneer = null }) {
   const router = useRouter();
   const cart = useCart();
-  const [method, setMethod] = useState(options[0]?.name || "");
+  const [method, setMethod] = useState(options[0]?.name || (payoneer ? PAYONEER_METHOD : ""));
   const isWallet = method === WALLET_METHOD;
+  const isPayoneer = method === PAYONEER_METHOD && !!payoneer;
   const [coupon, setCoupon] = useState("");
   const [applied, setApplied] = useState(null); // {code, discount, label}
   const [cState, setCState] = useState({ busy: false, err: "" });
@@ -566,8 +568,13 @@ export default function CheckoutClient({ options, user, contact, wa: waT, usd, w
   const accDone = accKeys.filter((k) => valid[k]).length;
   const [agree, setAgree] = useState(false);
   const [nudge, setNudge] = useState(0); // bumps each time "Place order" is pressed without the terms ticked
+  // Dollar total for Payoneer: each item's own $ price (or ৳ at the site rate), coupon applied in
+  // proportion. The server recomputes it from the database; this is only what the buyer sees.
+  const usdLines = cart.items.map((x) => usdOf(x.usd, x.price, usd?.rate));
+  const payoneerUsd = usdLines.every((x) => x != null) && subtotal ? Math.ceil(usdLines.reduce((n, x) => n + x, 0) * (total / subtotal) * 100) / 100 : null;
+  const payDone = !!method && (isWallet ? wallet >= total : isPayoneer ? payoneerUsd > 0 : !!valid.txn);
   const checklist = [
-    [!!method && (isWallet ? wallet >= total : !!valid.txn), "Payment & Transaction ID", "checkout-txn"],
+    [payDone, isPayoneer ? "Payment method" : "Payment & Transaction ID", "checkout-txn"],
     [accDone === accKeys.length, "Account details", "checkout-first"],
     [agree, "Accept the terms", "checkout-agree"],
   ];
@@ -612,6 +619,8 @@ export default function CheckoutClient({ options, user, contact, wa: waT, usd, w
     let tx = { value: "" };
     if (isWallet) {
       if (wallet < total) return jump("checkout-txn", `Your wallet balance (৳${wallet.toLocaleString()}) is not enough for this order.`);
+    } else if (isPayoneer) {
+      if (!(payoneerUsd > 0)) return jump("checkout-txn", "Dollar prices aren't available for these items yet. Please choose another payment method.");
     } else {
       tx = checkTxn(methodKind(method), f.get("txnId"), total);
       if (tx.status === "error" || tx.status === "empty") return jump("checkout-txn", tx.messages.find((m) => m.type === "error")?.text || "Please enter the payment Transaction ID.");
@@ -666,11 +675,13 @@ export default function CheckoutClient({ options, user, contact, wa: waT, usd, w
       <motion.div initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="max-w-lg mx-auto text-center rounded-2xl border border-line bg-panel p-10">
         <CheckCircle2 size={56} className="text-emerald-400 mx-auto mb-4" />
         <h1 className="font-display text-2xl font-bold">Order #{st.done.number} received</h1>
-        <p className="text-brand font-bold text-xl mt-2">৳{st.done.amount.toLocaleString()}</p>
+        <p className="text-brand font-bold text-xl mt-2">{st.done.method === PAYONEER_METHOD && st.done.usdAmount ? `$${st.done.usdAmount.toFixed(2)}` : `৳${st.done.amount.toLocaleString()}`}</p>
         <p className="text-mist text-sm mt-4 leading-relaxed">
           {st.done.method === WALLET_METHOD
             ? "Paid instantly from your wallet balance. We're preparing your order now - you can follow its status in your Client Area."
-            : <>We will verify your payment and send your access details {waCh ? "by email or WhatsApp" : "to your email"} shortly. You can follow the status in your Client Area.</>}
+            : st.done.method === PAYONEER_METHOD
+              ? <>Next: we'll email you a secure Payoneer payment request{st.done.usdAmount ? <> for <b className="text-fg">${st.done.usdAmount.toFixed(2)}</b></> : null}, usually within a few hours. It also appears as a Pay button in your Client Area. Your order unlocks as soon as the payment is confirmed.</>
+              : <>We will verify your payment and send your access details {waCh ? "by email or WhatsApp" : "to your email"} shortly. You can follow the status in your Client Area.</>}
         </p>
         <div className="flex flex-wrap justify-center gap-3 mt-7">
           {waCh && (
@@ -706,18 +717,20 @@ export default function CheckoutClient({ options, user, contact, wa: waT, usd, w
   return (
     <form onSubmit={submit} className="grid lg:grid-cols-[1fr_380px] gap-8 items-start">
       <div className="space-y-6">
-        <div className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
-          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
-          <p>Before purchasing, check the <Link href="/limits" target="_blank" className="underline font-semibold">limits and tool status</Link>.</p>
-        </div>
+        {cart.items.some((x) => x.type === "tool" || x.type === "bundle" || x.type === "plan") && (
+          <div className="flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-300">
+            <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+            <p>Before purchasing, check the <Link href="/limits" target="_blank" className="underline font-semibold">limits and tool status</Link>.</p>
+          </div>
+        )}
 
         <Section
           n="1"
           title="Select payment method"
-          done={!!method && (isWallet ? wallet >= total : !!valid.txn)}
+          done={payDone}
           extra={<span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-400"><ShieldCheck size={14} /> Manually verified payments</span>}
         >
-          {options.length === 0 && !(user && wallet > 0) ? (
+          {options.length === 0 && !(user && wallet > 0) && !payoneer ? (
             <p className="text-sm text-mist">No payment options are configured yet. Please contact support.</p>
           ) : (
             <div className="space-y-3" role="radiogroup" aria-label="Payment method">
@@ -764,9 +777,42 @@ export default function CheckoutClient({ options, user, contact, wa: waT, usd, w
                   </div>
                 );
               })}
+              {payoneer && (
+                <div className={`rounded-xl border transition-all ${isPayoneer ? "border-sky-500 bg-sky-500/[0.06] shadow-[0_10px_30px_-18px_#0EA5E9]" : "border-line hover:border-mist hover:bg-panel2/40"}`}>
+                  <label className="flex cursor-pointer items-center gap-3 p-4">
+                    <input type="radio" name="pm" value={PAYONEER_METHOD} checked={isPayoneer} onChange={() => setMethod(PAYONEER_METHOD)} className="peer sr-only" />
+                    <span className={`w-5 h-5 shrink-0 rounded-full border-2 flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50 ${isPayoneer ? "border-sky-500" : "border-mist/60"}`}>
+                      {isPayoneer && <motion.span layoutId="pm-dot" className="w-2.5 h-2.5 rounded-full bg-sky-500" />}
+                    </span>
+                    <span className="inline-flex h-9 w-14 shrink-0 items-center justify-center rounded-lg text-white shadow-sm bg-gradient-to-br from-sky-500 to-indigo-600"><CreditCard size={18} /></span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-bold text-sm">{payoneer.label}</span>
+                      <span className="block text-xs text-mist mt-0.5 truncate">International buyers · Visa, Mastercard, bank or Payoneer</span>
+                    </span>
+                    {payoneerUsd > 0 && <span className="shrink-0 text-sm font-bold text-sky-300">${payoneerUsd.toFixed(2)}</span>}
+                  </label>
+                </div>
+              )}
             </div>
           )}
-          {isWallet ? (
+          {isPayoneer ? (
+            <div id="checkout-txn" tabIndex={-1} className="mt-6 rounded-xl border border-sky-500/30 bg-sky-500/[0.06] p-4 outline-none">
+              {payoneerUsd > 0 ? (
+                <>
+                  <p className="text-[11px] uppercase tracking-wider text-mist font-semibold">You'll pay</p>
+                  <p className="font-display text-3xl font-bold text-sky-300 leading-tight tabular-nums">${payoneerUsd.toFixed(2)} <span className="text-base font-semibold text-sky-400/80">USD</span></p>
+                  <p className="mt-3 text-sm text-fg/85 leading-relaxed">{payoneer.instructions}</p>
+                  <ol className="mt-3 space-y-1.5 text-xs text-mist list-decimal pl-4">
+                    <li>Place your order below - no payment needed yet</li>
+                    <li>Get a secure Payoneer payment link by email (also shown in your Client Area)</li>
+                    <li>Pay by card, bank or Payoneer - your order unlocks once confirmed</li>
+                  </ol>
+                </>
+              ) : (
+                <p className="text-sm text-amber-300 flex items-start gap-2"><AlertTriangle size={16} className="shrink-0 mt-0.5" /> Dollar prices aren't available for some items in your basket. Please choose another payment method or contact us.</p>
+              )}
+            </div>
+          ) : isWallet ? (
             <div className={`mt-6 rounded-xl border p-4 flex items-center gap-3 ${wallet >= total ? "border-emerald-500/30 bg-emerald-500/[0.06]" : "border-red-500/30 bg-red-500/[0.06]"}`}>
               {wallet >= total ? <ShieldCheck size={18} className="text-emerald-400 shrink-0" /> : <AlertTriangle size={18} className="text-red-400 shrink-0" />}
               <p className="text-sm">

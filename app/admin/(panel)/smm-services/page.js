@@ -2,12 +2,14 @@ import { getSettings } from "@/lib/settings";
 import MasterToggle from "@/components/admin/MasterToggle";
 import SmmSyncPanel from "@/components/admin/SmmSyncPanel";
 import ResourceManager from "@/components/admin/ResourceManager";
+import { requirePage, hasPerm } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 // Same pattern as Admin -> Free Offers / AI Prompt Vault: a dedicated route (not the generic
 // [resource] one) so the on/off switch and the SMMIU sync/balance panel can sit above the services list.
 export default async function SmmServicesAdminPage({ searchParams }) {
+  const admin = await requirePage("growth.view");
   const s = await getSettings();
   return (
     <div className="space-y-6">
@@ -20,6 +22,7 @@ export default async function SmmServicesAdminPage({ searchParams }) {
       />
       <SmmSyncPanel />
       <ResourceManager
+        canManage={hasPerm(admin, "growth.manage")}
         key={`smmServices|${searchParams?.q || ""}|${searchParams?.edit || ""}|${searchParams?.new || ""}|${searchParams?.t || ""}`}
         name="smmServices"
         initialQ={String(searchParams?.q || "")}

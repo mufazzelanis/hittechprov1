@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 // GET the full, page-by-page timeline for one visitor session (admin expands a row to see this).
 export async function GET(_req, { params }) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  { const g = await guard("analytics.view"); if (g.res) return g.res; }
   const rows = await prisma.visit.findMany({
     where: { sessionId: String(params.id).slice(0, 60) },
     orderBy: { createdAt: "asc" },

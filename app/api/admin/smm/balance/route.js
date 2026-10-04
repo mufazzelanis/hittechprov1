@@ -3,11 +3,12 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/apiHelpers";
 import { smmBalance } from "@/lib/smmiu";
+import { guard } from "@/lib/adminAuth";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
 export async function GET() {
-  if (!requireAdmin()) return deny();
+  { const g = await guard("growth.view"); if (g.res) return g.res; }
   try {
     const b = await smmBalance();
     return NextResponse.json({ balance: parseFloat(b.balance) || 0, currency: b.currency || "USD" });

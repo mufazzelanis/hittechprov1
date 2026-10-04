@@ -1,12 +1,14 @@
 import { getSettings } from "@/lib/settings";
 import MasterToggle from "@/components/admin/MasterToggle";
 import ResourceManager from "@/components/admin/ResourceManager";
+import { requirePage, hasPerm } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 // A dedicated route (not the generic [resource] one) so the on/off switch can sit above the list,
 // the same pattern as Admin -> Free Offers.
 export default async function PromptVaultAdminPage({ searchParams }) {
+  const admin = await requirePage("growth.view");
   const s = await getSettings();
   return (
     <div className="space-y-6">
@@ -18,6 +20,7 @@ export default async function PromptVaultAdminPage({ searchParams }) {
         offText="Visitors see a 'Coming soon' page. Add your prompts below, then switch this on when you are ready to launch."
       />
       <ResourceManager
+        canManage={hasPerm(admin, "growth.manage")}
         key={`prompts|${searchParams?.q || ""}|${searchParams?.edit || ""}|${searchParams?.new || ""}|${searchParams?.t || ""}`}
         name="prompts"
         initialQ={String(searchParams?.q || "")}

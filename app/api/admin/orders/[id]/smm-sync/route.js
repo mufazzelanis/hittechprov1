@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/apiHelpers";
 import { smmOrderStatus } from "@/lib/smmiu";
 import { logOrderEvent } from "@/lib/orderEvents";
 import { capiOnPaid } from "@/lib/fb";
+import { guard } from "@/lib/adminAuth";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -17,7 +18,8 @@ const ADVANCEABLE_FROM = new Set(["PAID", "IN_PROGRESS"]);
 
 // Pulls the current progress (status/remains/start count) from SMMIU for an order already sent there.
 export async function POST(req, { params }) {
-  const session = requireAdmin();
+  const { admin: session, res: denied } = await guard("orders.manage");
+  if (denied) return denied;
   if (!session) return deny();
 
   const smmOrder = await prisma.smmOrder.findUnique({ where: { orderId: params.id }, include: { order: true } });

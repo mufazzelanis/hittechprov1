@@ -4,7 +4,107 @@ import { useEffect, useState } from "react";
 import {
   X, Copy, Check, Mail, Phone, MessageCircle, Loader2, Send, StickyNote, ArrowRightLeft,
   PackageCheck, Clock, User, ShoppingBag, ExternalLink, Share2, RefreshCcw, Rocket, Link2,
+  CreditCard, ClipboardList, Upload, FileDown, Trash2,
 } from "lucide-react";
+import { PAYONEER_METHOD, parseFiles, parseJson, fmtSize, fmtUsd } from "@/lib/catalog";
+
+const LINE_LABEL = { product: "Template", service: "Service", tool: "Tool", bundle: "Bundle", plan: "Pack", smm: "SMM" };
+
+// Payoneer payment link: paste it, it's saved on the order and emailed to the buyer.
+function PayLinkBox({ order, onDone }) {
+  const [url, setUrl] = useState(order.payLink || "");
+  const [saved, setSaved] = useState(order.payLink || "");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  async function save() {
+    setBusy(true);
+    setMsg(null);
+    const r = await fetch(`/api/admin/orders/${order.id}/paylink`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (!r.ok) return setMsg({ err: true, text: j.error || "Could not save" });
+    setSaved(j.payLink);
+    setMsg({ text: j.emailed ? `Saved and emailed to ${order.email}` : "Saved. Email not sent (SMTP not configured) - the buyer still sees the Pay button in their Client Area." });
+    onDone?.();
+  }
+  return (
+    <section>
+      <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2 flex items-center gap-1.5"><CreditCard size={12} /> Payoneer payment</p>
+      <div className="rounded-xl border border-sky-500/30 bg-sky-500/[0.05] p-4 space-y-3">
+        {order.usdAmount ? (
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-sm">Request exactly</span>
+            <span className="flex items-center gap-1 font-display text-xl font-bold text-sky-300">{fmtUsd(order.usdAmount.toFixed(2))} USD<CopyBtn value={order.usdAmount.toFixed(2)} /></span>
+          </div>
+        ) : null}
+        <ol className="text-[11px] text-mist space-y-0.5 list-decimal pl-4">
+          <li>Payoneer → <b className="text-fg">Get Paid → Request a payment</b>, for the amount above, to <b className="text-fg">{order.email}</b></li>
+          <li>Copy the payment request link and paste it here</li>
+          <li>When the money arrives, set the status to <b className="text-fg">PAID</b> - downloads unlock automatically</li>
+        </ol>
+        <div className="flex gap-2">
+          <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…payoneer.com/…" className="input !py-2 text-sm" />
+          <button type="button" disabled={busy || !url.trim() || url.trim() === saved} onClick={save} className="btn-primary !py-2 !px-3 text-xs shrink-0">
+            {busy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} {saved ? "Update & email" : "Save & email"}
+          </button>
+        </div>
+        {saved && <a href={saved} target="_blank" rel="noreferrer" className="text-[11px] text-sky-300 hover:underline inline-flex items-center gap-1 break-all"><Link2 size={11} /> Current link: {saved}</a>}
+        {msg && <p className={`text-xs ${msg.err ? "text-red-400" : "text-emerald-400"}`}>{msg.text}</p>}
+      </div>
+    </section>
+  );
+}
+
+// Finished work for a service order: uploaded here, downloaded by the buyer in their Client Area.
+function DeliveryFiles({ order, onDone }) {
+  const [files, setFiles] = useState(parseFiles(order.deliveryFiles));
+  const [busy, setBusy] = useState("");
+  const [err, setErr] = useState("");
+  async function add(list) {
+    setErr("");
+    for (const f of Array.from(list || [])) {
+      setBusy(f.name);
+      const fd = new FormData();
+      fd.append("file", f);
+      const r = await fetch(`/api/admin/orders/${order.id}/files`, { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) setFiles(j.files); else setErr(j.error || "Upload failed");
+    }
+    setBusy("");
+    onDone?.();
+  }
+  async function remove(id) {
+    const r = await fetch(`/api/admin/orders/${order.id}/files?fileId=${encodeURIComponent(id)}`, { method: "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) setFiles(j.files);
+    onDone?.();
+  }
+  return (
+    <section>
+      <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2 flex items-center gap-1.5"><FileDown size={12} /> Delivery files</p>
+      <div className="space-y-2">
+        {files.length > 0 && (
+          <ul className="rounded-xl border border-line divide-y divide-line">
+            {files.map((f) => (
+              <li key={f.id} className="flex items-center gap-3 px-3 py-2">
+                <FileDown size={14} className="text-brand shrink-0" />
+                <a href={`/api/downloads/${order.id}/${f.id}`} className="flex-1 min-w-0 text-sm truncate hover:underline">{f.name}</a>
+                <span className="text-[11px] text-mist shrink-0">{fmtSize(f.size)}</span>
+                <button type="button" onClick={() => remove(f.id)} aria-label={`Remove ${f.name}`} className="p-1 text-mist hover:text-red-400"><Trash2 size={13} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <label className={`flex items-center justify-center gap-2 rounded-xl border border-dashed border-line px-4 py-3.5 text-sm text-mist cursor-pointer hover:border-brand hover:text-fg ${busy ? "pointer-events-none opacity-70" : ""}`}>
+          {busy ? <><Loader2 size={14} className="animate-spin" /> Uploading {busy}…</> : <><Upload size={14} /> Upload finished files</>}
+          <input type="file" multiple hidden onChange={(e) => { add(e.target.files); e.target.value = ""; }} />
+        </label>
+        <p className="text-[11px] text-mist">The buyer downloads these from their Client Area once the order is paid. Then use "Email customer" below to let them know.</p>
+        {err && <p className="text-xs text-red-400">{err}</p>}
+      </div>
+    </section>
+  );
+}
 
 const SMM_STATUS_STYLE = {
   Pending: "bg-amber-500/15 text-amber-300",
@@ -69,7 +169,7 @@ function Row({ label, value, copy, action }) {
   );
 }
 
-export default function OrderDetail({ order, onClose, onSaved }) {
+export default function OrderDetail({ order, readOnly = false, onClose, onSaved }) {
   const [status, setStatus] = useState(order.status);
   const [statusBusy, setStatusBusy] = useState(false);
   const [events, setEvents] = useState(null);
@@ -142,6 +242,8 @@ export default function OrderDetail({ order, onClose, onSaved }) {
   }
 
   const wa = digits(order.phone) ? `https://wa.me/${digits(order.phone)}` : null;
+  const lineItems = (() => { const l = parseJson(order.lines, []); return Array.isArray(l) ? l : []; })();
+  const hasService = lineItems.some((l) => l.type === "service");
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -160,7 +262,7 @@ export default function OrderDetail({ order, onClose, onSaved }) {
           <div className="flex items-center gap-3">
             <label className="text-xs text-mist shrink-0">Status</label>
             <select
-              value={status} disabled={statusBusy} onChange={(e) => changeStatus(e.target.value)}
+              value={status} disabled={statusBusy || readOnly} onChange={(e) => changeStatus(e.target.value)}
               className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold border-0 outline-none cursor-pointer ${STATUS_STYLE[status]}`}
             >
               {STATUSES.map((s) => <option key={s} value={s} className="bg-panel text-fg">{s.split("_").join(" ")}</option>)}
@@ -194,6 +296,7 @@ export default function OrderDetail({ order, onClose, onSaved }) {
               <Row label="Item" value={order.itemName} />
               <Row label="Source" value={order.itemType === "manual" ? "Manual" : "Website"} />
               <Row label="Amount" value={`৳${Number(order.amount).toLocaleString()}`} />
+              <Row label="Amount (USD)" value={order.usdAmount ? `$${order.usdAmount.toFixed(2)}` : null} copy />
               <Row label="Method" value={order.method} />
               <Row label="Transaction ID" value={order.txnId} copy />
               <Row label="Referred by" value={order.refCode} copy />
@@ -201,6 +304,34 @@ export default function OrderDetail({ order, onClose, onSaved }) {
               <Row label="Placed" value={fmtDate(order.createdAt)} />
             </div>
           </section>
+
+          {lineItems.length > 1 && (
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2 flex items-center gap-1.5"><ShoppingBag size={12} /> Items</p>
+              <ul className="rounded-xl border border-line divide-y divide-line/60">
+                {lineItems.map((l, i) => (
+                  <li key={i} className="flex items-center gap-3 px-4 py-2 text-sm">
+                    <span className="text-[10px] font-bold uppercase tracking-wide rounded px-1.5 py-0.5 bg-panel2 text-mist shrink-0">{LINE_LABEL[l.type] || l.type}</span>
+                    <span className="flex-1 min-w-0 truncate">{l.name}</span>
+                    <span className="text-mist shrink-0">৳{Number(l.price).toLocaleString()}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {!readOnly && (order.method === PAYONEER_METHOD || order.payLink) && <PayLinkBox order={order} onDone={() => { loadEvents(); onSaved?.(); }} />}
+
+          {hasService && (
+            <section>
+              <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2 flex items-center gap-1.5"><ClipboardList size={12} /> Buyer's brief</p>
+              {order.brief
+                ? <p className="rounded-xl border border-line bg-panel2/40 px-4 py-3 text-sm whitespace-pre-wrap">{order.brief}</p>
+                : <p className="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-mist">Not sent yet. The buyer is asked for it in their Client Area once the order is paid.</p>}
+            </section>
+          )}
+
+          {!readOnly && (hasService || parseFiles(order.deliveryFiles).length > 0) && <DeliveryFiles order={order} onDone={() => { loadEvents(); onSaved?.(); }} />}
 
           {/* SMM fulfillment */}
           {smm && (
@@ -216,7 +347,7 @@ export default function OrderDetail({ order, onClose, onSaved }) {
                 <Row label="Remaining" value={smm.remains?.toLocaleString()} />
                 <Row label="Last synced" value={smm.lastSyncedAt ? timeAgo(smm.lastSyncedAt) : null} />
               </div>
-              <div className="flex items-center gap-2 mt-3">
+              {!readOnly && <div className="flex items-center gap-2 mt-3">
                 {!smm.providerOrderId ? (
                   <button type="button" disabled={smmBusy} onClick={sendToProvider} className="btn-primary !py-2 !px-4 text-xs">
                     {smmBusy ? <Loader2 size={13} className="animate-spin" /> : <Rocket size={13} />} Send to SMMIU
@@ -227,7 +358,7 @@ export default function OrderDetail({ order, onClose, onSaved }) {
                   </button>
                 )}
                 {smmErr && <p className="text-xs text-red-400">{smmErr}</p>}
-              </div>
+              </div>}
               {!smm.providerOrderId && <p className="text-[11px] text-mist mt-2">Only send this once payment is confirmed (status PAID or later) - it spends real balance on your SMMIU account.</p>}
             </section>
           )}
@@ -239,6 +370,7 @@ export default function OrderDetail({ order, onClose, onSaved }) {
             </section>
           )}
 
+          {!readOnly && <>
           {/* Send delivery */}
           <section>
             <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2 flex items-center gap-1.5"><Send size={12} /> Send delivery details</p>
@@ -270,6 +402,8 @@ export default function OrderDetail({ order, onClose, onSaved }) {
               <button type="button" disabled={noteBusy || !note.trim()} onClick={addNote} className="btn-ghost shrink-0">{noteBusy ? <Loader2 size={14} className="animate-spin" /> : "Add"}</button>
             </div>
           </section>
+
+          </>}
 
           {/* Timeline */}
           <section>

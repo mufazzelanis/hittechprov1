@@ -6,6 +6,8 @@ import { useSelection, Check3, BulkBar, Modal, ConfirmDelete, downloadCsv, plura
 import { RESOURCES, ICONS } from "@/lib/resources";
 import ManualOrder from "./ManualOrder";
 import OrderDetail from "./OrderDetail";
+import { fmtUsd, parsePackages } from "@/lib/catalog";
+import { GalleryInput, FilesInput, PackagesInput } from "./CatalogInputs";
 
 const STATUS_STYLE = {
   PENDING: "bg-amber-500/15 text-amber-300",
@@ -37,7 +39,9 @@ function emptyRow(res) {
   return o;
 }
 
-export default function ResourceManager({ name, initialStatus = "", initialQ = "", initialEdit = "", initialNew = false }) {
+// canManage=false renders a read-only view (no add/edit/delete/bulk/inline toggles). The API enforces the
+// same rules on its own - this only keeps the screen honest about what the person can do.
+export default function ResourceManager({ name, canManage = true, canCreateOrder = true, seeMoney = true, initialStatus = "", initialQ = "", initialEdit = "", initialNew = false }) {
   const res = RESOURCES[name];
   const [rows, setRows] = useState([]);
   const [cats, setCats] = useState([]);
@@ -200,6 +204,13 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
         );
       case "money":
         return <span className="font-semibold">৳{Number(v).toLocaleString()}</span>;
+      case "usd":
+        return Number(v) > 0 ? <span className="font-semibold">{fmtUsd(v)}</span> : <span className="text-mist/60 text-xs">auto</span>;
+      case "packages": {
+        const pk = parsePackages(v);
+        if (!pk.length) return <span className="text-red-400 text-xs">No packages</span>;
+        return <span className="text-xs text-mist whitespace-nowrap">{pk.length} · from <b className="text-fg">৳{Math.min(...pk.map((p) => p.price)).toLocaleString()}</b></span>;
+      }
       case "source":
         return v === "manual" ? <span className="rounded-full px-2.5 py-1 text-[11px] font-semibold bg-amber-500/15 text-amber-300">Manual</span> : <span className="text-mist text-xs">Website</span>;
       case "orderno":
@@ -216,6 +227,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
         );
       }
       case "status":
+        if (!canManage) return <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[v] || "bg-panel2 text-mist"}`}>{String(v || "").split("_").join(" ")}</span>;
         return res.noCreate ? (
           <select
             value={v}
@@ -228,6 +240,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
           </select>
         ) : null;
       case "soon":
+        if (!canManage) return v ? <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold bg-amber-500/15 text-amber-300">Soon</span> : <span className="text-mist/50 text-xs">—</span>;
         return (
           <button
             onClick={() => patch(row, { soon: !v })}
@@ -238,6 +251,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
           </button>
         );
       case "badge":
+        if (!canManage) return <span className={`inline-block w-2.5 h-2.5 rounded-full ${v ? "bg-brand" : "bg-line"}`} title={v ? "On" : "Off"} />;
         return (
           <button
             onClick={() => patch(row, { [f.key]: !v })}
@@ -303,8 +317,9 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
         <div className="flex-1" />
         {rows.length > 0 && <button type="button" onClick={() => exportCsv(rows, "all")} className="btn-ghost" title="Download the listed rows as a spreadsheet file"><Download size={15} /> <span className="hidden sm:inline">Export</span></button>}
         {name === "orders" && <a href="/admin/sales" className="btn-ghost"><BarChart3 size={15} /> <span className="hidden sm:inline">Sales report</span></a>}
-        {name === "orders" && <ManualOrder onCreated={(n) => { flash(`Manual order #${n} created`); load(); }} />}
-        {!res.noCreate && (
+        {name === "orders" && canCreateOrder && <ManualOrder onCreated={(n) => { flash(`Manual order #${n} created`); load(); }} />}
+        {!canManage && <span className="inline-flex items-center gap-1.5 rounded-lg border border-line px-3 py-2 text-xs text-mist"><Eye size={13} /> View only</span>}
+        {!res.noCreate && canManage && (
           <button className="btn-primary" onClick={() => setEditing(emptyRow(res))}>
             <Plus size={16} /> Add {res.singular.toLowerCase()}
           </button>
@@ -315,10 +330,10 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {[
             { label: "Today's orders", value: orderInsights.todayCount, icon: ShoppingBag, tone: "text-brand bg-brand/10" },
-            { label: "Today's revenue", value: `৳${orderInsights.todayRevenue.toLocaleString()}`, icon: Wallet, tone: "text-emerald-400 bg-emerald-500/10" },
+            seeMoney && { label: "Today's revenue", value: `৳${orderInsights.todayRevenue.toLocaleString()}`, icon: Wallet, tone: "text-emerald-400 bg-emerald-500/10" },
             { label: "Pending", value: orderInsights.pending, icon: Clock, tone: "text-amber-400 bg-amber-500/10", onClick: () => setStatus((s) => (s === "PENDING" ? "" : "PENDING")) },
             { label: "Needs attention", value: orderInsights.needsAttention, icon: AlertTriangle, tone: orderInsights.needsAttention > 0 ? "text-red-400 bg-red-500/10" : "text-mist bg-panel2", hot: orderInsights.needsAttention > 0 },
-          ].map((c) => {
+          ].filter(Boolean).map((c) => {
             const Comp = c.onClick ? "button" : "div";
             return (
               <Comp key={c.label} type={c.onClick ? "button" : undefined} onClick={c.onClick} className={`rounded-xl border p-3.5 text-left ${c.hot ? "border-red-500/40" : "border-line"} bg-panel ${c.onClick ? "hover:border-mist transition-colors cursor-pointer" : ""} ${c.onClick && status === "PENDING" ? "ring-1 ring-amber-400/50" : ""}`}>
@@ -375,7 +390,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-mist border-b border-line">
-              <th className="pl-4 pr-1 py-3 w-10"><Check3 checked={pick.all} indeterminate={pick.some} onChange={pick.toggleAll} label="Select all" /></th>
+              {canManage && <th className="pl-4 pr-1 py-3 w-10"><Check3 checked={pick.all} indeterminate={pick.some} onChange={pick.toggleAll} label="Select all" /></th>}
               {listFields.map((f) => (
                 <th key={f.key} className="px-4 py-3 font-medium whitespace-nowrap">{f.label}</th>
               ))}
@@ -396,12 +411,12 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
             {!loading &&
               rows.map((row) => (
                 <tr key={row.id} className={`border-b border-line/60 last:border-0 transition-colors ${pick.has(row.id) ? "bg-brand/[0.08]" : "hover:bg-panel2/50"}`}>
-                  <td className="pl-4 pr-1 py-3 align-middle w-10"><Check3 checked={pick.has(row.id)} onChange={(e) => pick.toggle(row.id, e)} label={`Select ${rowName(row)}`} /></td>
+                  {canManage && <td className="pl-4 pr-1 py-3 align-middle w-10"><Check3 checked={pick.has(row.id)} onChange={(e) => pick.toggle(row.id, e)} label={`Select ${rowName(row)}`} /></td>}
                   {listFields.map((f) => (
                     <td key={f.key} className="px-4 py-3 align-middle">{cell(row, f)}</td>
                   ))}
                   <td className="px-4 py-3 text-right whitespace-nowrap">
-                    {name === "categories" && (
+                    {name === "categories" && canManage && (
                       <>
                         <button onClick={() => moveCategory(row, -1)} disabled={!!q.trim() || rows.indexOf(row) === 0} title={q.trim() ? "Clear search to reorder" : "Move up"} className="p-2 text-mist hover:text-fg disabled:opacity-30 disabled:hover:text-mist" aria-label="Move up">
                           <ChevronUp size={15} />
@@ -411,15 +426,15 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
                         </button>
                       </>
                     )}
-                    {name === "tools" && (
+                    {name === "tools" && canManage && (
                       <button onClick={() => duplicateRow(row)} className="p-2 text-mist hover:text-fg" aria-label="Duplicate" title="Duplicate this tool">
                         <Copy size={15} />
                       </button>
                     )}
-                    <button onClick={() => setEditing({ ...row })} className="p-2 text-mist hover:text-fg" aria-label="Edit">
-                      <Pencil size={15} />
+                    <button onClick={() => setEditing({ ...row })} className="p-2 text-mist hover:text-fg" aria-label={canManage ? "Edit" : "View"} title={canManage ? "Edit" : "View"}>
+                      {canManage ? <Pencil size={15} /> : <Eye size={15} />}
                     </button>
-                    {name !== "orders" && (
+                    {name !== "orders" && canManage && (
                       <button onClick={() => remove(row)} className="p-2 text-mist hover:text-red-400" aria-label="Delete">
                         <Trash2 size={15} />
                       </button>
@@ -439,18 +454,18 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
           rows.map((row) => (
             <div key={row.id} className={`rounded-2xl border p-4 transition-colors ${pick.has(row.id) ? "border-brand/60 bg-brand/[0.07]" : "border-line bg-panel"}`}>
               <div className="flex items-start justify-between gap-3">
-                <Check3 className="mt-0.5" checked={pick.has(row.id)} onChange={(e) => pick.toggle(row.id, e)} label={`Select ${rowName(row)}`} />
+                {canManage && <Check3 className="mt-0.5" checked={pick.has(row.id)} onChange={(e) => pick.toggle(row.id, e)} label={`Select ${rowName(row)}`} />}
                 <div className="min-w-0 flex-1 font-medium">{cell(row, listFields[0])}</div>
                 <div className="shrink-0 -mr-2 -mt-2">
-                  {name === "categories" && !q.trim() && (
+                  {name === "categories" && canManage && !q.trim() && (
                     <>
                       <button onClick={() => moveCategory(row, -1)} disabled={rows.indexOf(row) === 0} className="p-3 text-mist hover:text-fg disabled:opacity-30" aria-label="Move up"><ChevronUp size={17} /></button>
                       <button onClick={() => moveCategory(row, 1)} disabled={rows.indexOf(row) === rows.length - 1} className="p-3 text-mist hover:text-fg disabled:opacity-30" aria-label="Move down"><ChevronDown size={17} /></button>
                     </>
                   )}
-                  {name === "tools" && <button onClick={() => duplicateRow(row)} className="p-3 text-mist hover:text-fg" aria-label="Duplicate"><Copy size={17} /></button>}
-                  <button onClick={() => setEditing({ ...row })} className="p-3 text-mist hover:text-fg" aria-label="Edit"><Pencil size={17} /></button>
-                  {name !== "orders" && <button onClick={() => remove(row)} className="p-3 text-mist hover:text-red-400" aria-label="Delete"><Trash2 size={17} /></button>}
+                  {name === "tools" && canManage && <button onClick={() => duplicateRow(row)} className="p-3 text-mist hover:text-fg" aria-label="Duplicate"><Copy size={17} /></button>}
+                  <button onClick={() => setEditing({ ...row })} className="p-3 text-mist hover:text-fg" aria-label={canManage ? "Edit" : "View"}>{canManage ? <Pencil size={17} /> : <Eye size={17} />}</button>
+                  {name !== "orders" && canManage && <button onClick={() => remove(row)} className="p-3 text-mist hover:text-red-400" aria-label="Delete"><Trash2 size={17} /></button>}
                 </div>
               </div>
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3">
@@ -466,7 +481,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
       </div>
 
       {editing && name === "orders" && (
-        <OrderDetail order={editing} onClose={() => setEditing(null)} onSaved={load} />
+        <OrderDetail order={editing} readOnly={!canManage} onClose={() => setEditing(null)} onSaved={load} />
       )}
       {editing && name !== "orders" && (
         <EditDrawer
@@ -474,6 +489,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
           name={name}
           cats={cats}
           initial={editing}
+          readOnly={!canManage}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -483,7 +499,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
         />
       )}
 
-      <BulkBar
+      {canManage && <BulkBar
         count={pick.count} noun={res.singular.toLowerCase()} onClear={pick.clear} busy={bulkBusy}
         actions={[
           ...(hasActive ? [{ label: "Show", icon: Eye, mobileIconOnly: true, onClick: () => bulk("update", { active: true }) }, { label: "Hide", icon: EyeOff, mobileIconOnly: true, onClick: () => bulk("update", { active: false }) }] : []),
@@ -491,7 +507,7 @@ export default function ResourceManager({ name, initialStatus = "", initialQ = "
           { label: "Export", icon: Download, mobileIconOnly: true, onClick: () => exportCsv(rows.filter((r) => pick.has(r.id)), "selected") },
           ...(name === "orders" ? [] : [{ label: "Delete", icon: Trash2, danger: true, mobileIconOnly: true, onClick: () => setConfirmDel(true) }]),
         ]}
-      />
+      />}
       <ConfirmDelete
         open={confirmDel} count={pick.count} noun={res.singular.toLowerCase()} busy={bulkBusy}
         names={rows.filter((r) => pick.has(r.id)).map(rowName)}
@@ -563,7 +579,7 @@ function BulkEditModal({ open, onClose, count, fields, cats, hasPrice, noun, bus
   );
 }
 
-function EditDrawer({ res, name, cats, initial, onClose, onSaved }) {
+function EditDrawer({ res, name, cats, initial, readOnly = false, onClose, onSaved }) {
   const [form, setForm] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -589,23 +605,24 @@ function EditDrawer({ res, name, cats, initial, onClose, onSaved }) {
       <button className="flex-1 bg-black/60" onClick={onClose} aria-label="Close" />
       <form onSubmit={save} className="w-full max-w-lg bg-panel border-l border-line flex flex-col">
         <div className="flex items-center justify-between px-6 h-16 border-b border-line">
-          <h2 className="font-display font-semibold">{isNew ? "Add" : "Edit"} {res.singular.toLowerCase()}</h2>
+          <h2 className="font-display font-semibold">{readOnly ? "View" : isNew ? "Add" : "Edit"} {res.singular.toLowerCase()}</h2>
           <button type="button" onClick={onClose} className="text-mist hover:text-fg"><X size={20} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <fieldset disabled={readOnly} className="flex-1 overflow-y-auto p-6 space-y-5 min-w-0">
           {res.fields.map((f) => (
             <Field key={f.key} f={f} value={form[f.key]} onChange={(v) => set(f.key, v)} cats={cats} />
           ))}
-        </div>
+        </fieldset>
 
         <div className="p-4 border-t border-line flex items-center gap-3">
           {err && <p className="text-sm text-red-400 flex-1">{err}</p>}
           <div className="flex-1" />
-          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
-          <button disabled={busy} className="btn-primary">
+          {readOnly && <p className="text-xs text-mist flex-1 flex items-center gap-1.5"><Eye size={13} /> View only - your role can't change this.</p>}
+          <button type="button" className="btn-ghost" onClick={onClose}>{readOnly ? "Close" : "Cancel"}</button>
+          {!readOnly && <button disabled={busy} className="btn-primary">
             {busy && <Loader2 size={15} className="animate-spin" />} Save
-          </button>
+          </button>}
         </div>
       </form>
     </div>
@@ -628,6 +645,14 @@ function Field({ f, value, onChange, cats }) {
       return <div>{label}<textarea rows={f.key === "tools" ? 8 : 4} value={value ?? ""} onChange={(e) => onChange(e.target.value)} className="input" required={f.required} /></div>;
     case "number":
       return <div>{label}<input type="number" min={0} value={value ?? 0} onChange={(e) => onChange(e.target.value)} className="input" /></div>;
+    case "decimal":
+      return <div>{label}<input type="number" min={0} step="0.01" value={value ?? 0} onChange={(e) => onChange(e.target.value)} className="input" /></div>;
+    case "gallery":
+      return <div>{label}<GalleryInput value={value} onChange={onChange} /></div>;
+    case "files":
+      return <div>{label}<FilesInput value={value} onChange={onChange} /></div>;
+    case "packages":
+      return <div>{label}<PackagesInput value={value} onChange={onChange} /></div>;
     case "soon":
       return (
         <label className={`flex items-center justify-between gap-4 rounded-lg border px-4 py-3 cursor-pointer ${value ? "border-amber-500/60 bg-amber-500/10" : "border-line"}`}>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { capiOnPaid } from "@/lib/fb";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +12,7 @@ const STATUSES = ["PENDING", "PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED", "R
 
 // Admin-only: record an order taken by phone / chat. Stored with itemType "manual" so it can be told apart.
 export async function POST(req) {
-  if (!getSession()) return fail("Unauthorized", 401);
+  { const g = await guard("orders.create"); if (g.res) return g.res; }
   const b = await req.json().catch(() => ({}));
 
   const name = clip(b.name, 120);

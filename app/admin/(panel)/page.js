@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import CountUp from "@/components/CountUp";
 import RevenueChart from "@/components/admin/RevenueChart";
 import { dhakaDay, dhakaStart, addDays } from "@/lib/dhaka";
+import { requirePage, hasPerm } from "@/lib/adminAuth";
+import { ShieldAlert } from "lucide-react";
 
 const STATUS_STYLE = {
   PENDING: "bg-amber-500/15 text-amber-300",
@@ -17,7 +19,11 @@ const STATUS_STYLE = {
 
 const dayKey = (d) => dhakaDay(d);
 
-export default async function Dashboard() {
+export default async function Dashboard({ searchParams }) {
+  const admin = await requirePage("dashboard.view");
+  const seeMoney = hasPerm(admin, "sales.view");
+  const seeOrders = hasPerm(admin, "orders.view");
+  const seeCatalog = hasPerm(admin, "catalog.view");
   const firstDay = addDays(dhakaDay(new Date()), -13);
   const since = dhakaStart(firstDay);
 
@@ -46,17 +52,20 @@ export default async function Dashboard() {
   const pending = st.PENDING?._count || 0;
 
   const cards = [
-    { label: "Total revenue", num: revenue, prefix: "৳", icon: Wallet, note: "Paid + delivered", href: "/admin/orders?status=PAID,IN_PROGRESS,COMPLETED,DELIVERED" },
-    { label: "Total orders", num: totalOrders, icon: ShoppingCart, note: "All time", href: "/admin/orders" },
-    { label: "Pending orders", num: pending, icon: Clock, note: "Need your action", hot: pending > 0, href: "/admin/orders?status=PENDING" },
-    { label: "Live listings", value: `${toolCount} tools · ${bundleCount} bundles`, icon: Wrench, note: "Visible on site", href: "/admin/tools" },
-  ];
+    seeMoney && { label: "Total revenue", num: revenue, prefix: "৳", icon: Wallet, note: "Paid + delivered", href: "/admin/orders?status=PAID,IN_PROGRESS,COMPLETED,DELIVERED" },
+    seeOrders && { label: "Total orders", num: totalOrders, icon: ShoppingCart, note: "All time", href: "/admin/orders" },
+    seeOrders && { label: "Pending orders", num: pending, icon: Clock, note: "Need your action", hot: pending > 0, href: "/admin/orders?status=PENDING" },
+    seeCatalog && { label: "Live listings", value: `${toolCount} tools · ${bundleCount} bundles`, icon: Wrench, note: "Visible on site", href: "/admin/tools" },
+  ].filter(Boolean);
 
   const maxCount = Math.max(1, ...byStatus.map((s) => s._count));
 
   return (
     <div className="space-y-6">
-      <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {searchParams?.denied && (
+        <p className="flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300"><ShieldAlert size={17} className="shrink-0 mt-0.5" /> Your role ({admin.role.name}) doesn't include that page. Ask an Owner if you need access.</p>
+      )}
+      {cards.length > 0 && <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {cards.map((c) => {
           const body = (
             <div className={`group rounded-2xl border bg-panel p-5 h-full transition-all hover:-translate-y-0.5 hover:border-brand/70 hover:shadow-glow ${c.hot ? "border-brand/50" : "border-line"}`}>
@@ -70,16 +79,16 @@ export default async function Dashboard() {
           );
           return <Link key={c.label} href={c.href} className="block h-full">{body}</Link>;
         })}
-      </div>
+      </div>}
 
-      <div className="grid xl:grid-cols-3 gap-6">
-        <section className="xl:col-span-2 rounded-2xl border border-line bg-panel p-6">
+      {(seeMoney || seeOrders) && <div className="grid xl:grid-cols-3 gap-6">
+        {seeMoney && <section className="xl:col-span-2 rounded-2xl border border-line bg-panel p-6">
           <div className="flex items-start justify-between gap-3"><h2 className="font-display font-semibold">Revenue · last 14 days</h2><Link href="/admin/sales" className="text-xs text-brand hover:underline whitespace-nowrap">Full sales report →</Link></div>
           <p className="text-xs text-mist mb-4">৳ per day from paid, in-progress, completed and delivered orders</p>
           <RevenueChart data={chart} />
-        </section>
+        </section>}
 
-        <section className="rounded-2xl border border-line bg-panel p-6">
+        {seeOrders && <section className={`rounded-2xl border border-line bg-panel p-6 ${seeMoney ? "" : "xl:col-span-3"}`}>
           <h2 className="font-display font-semibold mb-4">Orders by status</h2>
           <div className="space-y-4">
             {["PENDING", "PAID", "IN_PROGRESS", "COMPLETED", "DELIVERED", "REFUNDED", "CANCELLED"].map((s) => {
@@ -98,10 +107,10 @@ export default async function Dashboard() {
               );
             })}
           </div>
-        </section>
-      </div>
+        </section>}
+      </div>}
 
-      <section className="rounded-2xl border border-line bg-panel">
+      {seeOrders && <section className="rounded-2xl border border-line bg-panel">
         <div className="flex items-center justify-between p-6 pb-4">
           <h2 className="font-display font-semibold">Recent orders</h2>
           <Link href="/admin/orders" className="text-sm text-brand hover:text-brand-light">View all</Link>
@@ -117,7 +126,7 @@ export default async function Dashboard() {
                   <td className="px-6 py-3 text-mist">#{o.number}</td>
                   <td className="px-2 py-3 font-medium">{o.itemName}</td>
                   <td className="px-2 py-3 text-mist">{o.name}</td>
-                  <td className="px-2 py-3 font-semibold">৳{o.amount.toLocaleString()}</td>
+                  <td className="px-2 py-3 font-semibold">{seeMoney ? `৳${o.amount.toLocaleString()}` : ""}</td>
                   <td className="px-6 py-3 text-right">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_STYLE[o.status]}`}>{o.status}</span>
                   </td>
@@ -126,7 +135,7 @@ export default async function Dashboard() {
             </tbody>
           </table>
         </div>
-      </section>
+      </section>}
     </div>
   );
 }

@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { dhakaDay, dhakaStart, addDays } from "@/lib/dhaka";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 // GET ?days=7  (7 | 30 | 90) - everything the top of the Analytics page needs, in one round trip.
 export async function GET(req) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  { const g = await guard("analytics.view"); if (g.res) return g.res; }
   const days = Math.min(90, Math.max(1, parseInt(new URL(req.url).searchParams.get("days"), 10) || 7));
   const today = dhakaDay(new Date());
   const from = addDays(today, -(days - 1));

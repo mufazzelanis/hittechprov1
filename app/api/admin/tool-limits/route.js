@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { infoKey, normalizeInfo } from "@/lib/limits";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 // Admin-only: save one tool's status / limits.
 export async function PUT(req) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  { const g = await guard("catalog.manage"); if (g.res) return g.res; }
   const b = await req.json().catch(() => ({}));
   const toolId = String(b.toolId || "");
   // the id can belong to a tool, a bundle or a custom pack

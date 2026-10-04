@@ -24,6 +24,7 @@ export default async function CheckoutPage() {
         <CheckoutClient
           options={getPaymentOptions(s)}
           usd={{ rate: parseFloat(s.usdRate) || 0, currency: s.usdCurrency || "USDT" }}
+          payoneer={s.payoneerOn === "true" ? { label: s.payoneerLabel || "Card / Payoneer (USD)", instructions: s.payoneerInstructions } : null}
           user={user}
           wallet={wallet}
           wa={{ help: s.waHelpMsg, order: s.waOrderMsg, orderBtn: s.waOrderBtn, note: s.waOrderNote }}

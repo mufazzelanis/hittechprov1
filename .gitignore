@@ -6,3 +6,5 @@ node_modules/
 .next-check/
 public/uploads/
 *.log
+
+storage/

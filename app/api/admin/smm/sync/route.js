@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/apiHelpers";
 import { smmServices } from "@/lib/smmiu";
 import { getSettings } from "@/lib/settings";
+import { guard } from "@/lib/adminAuth";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -15,7 +16,7 @@ const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 // A brand-new service is created inactive with a suggested sellRate (provider cost x current USD rate x
 // a modest markup) so nothing goes live for sale before the admin has reviewed it.
 export async function POST() {
-  if (!requireAdmin()) return deny();
+  { const g = await guard("growth.manage"); if (g.res) return g.res; }
 
   let list;
   try {

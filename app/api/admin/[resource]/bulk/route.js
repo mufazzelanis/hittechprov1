@@ -4,6 +4,9 @@ import { requireAdmin, getResource, buildData } from "@/lib/apiHelpers";
 import { capiOnPaid } from "@/lib/fb";
 import { setSoon, infoKey } from "@/lib/limits";
 
+import { guard, audit } from "@/lib/adminAuth";
+import { resourcePerm } from "@/lib/resources";
+
 export const dynamic = "force-dynamic";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -12,7 +15,8 @@ const BULK_TYPES = ["bool", "select", "status", "category", "icon"];
 
 // POST { action: "delete" | "update", ids: [...], data: { field: value, ..., soon?, priceMode?, priceValue? } }
 export async function POST(req, { params }) {
-  if (!requireAdmin()) return deny();
+  const { admin, res: denied } = await guard(resourcePerm(params.resource, "manage"));
+  if (denied) return denied;
   const res = getResource(params.resource);
   if (!res) return NextResponse.json({ error: "Unknown resource" }, { status: 404 });
 
@@ -35,6 +39,7 @@ export async function POST(req, { params }) {
       }
     }
     if (products) await prisma.setting.deleteMany({ where: { key: { in: ids.map(infoKey) } } });
+    audit(admin, `${params.resource}.bulk_delete`, { target: `${affected} item(s)`, detail: ids.join(", "), req });
     return NextResponse.json({ ok: true, affected, failed });
   }
 
@@ -66,6 +71,7 @@ export async function POST(req, { params }) {
       const rows = await model.findMany({ where: { id: { in: ids } } });
       for (const r of rows) capiOnPaid(r);
     }
+    audit(admin, `${params.resource}.bulk_update`, { target: `${affected} item(s)`, detail: { ...data, ...(d.priceMode ? { priceMode: d.priceMode, priceValue: d.priceValue } : {}) }, req });
     return NextResponse.json({ ok: true, affected, failed: 0 });
   }
 

@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/db";
 import { getToolInfo, normalizeInfo } from "@/lib/limits";
 import ToolLimitsManager from "@/components/admin/ToolLimitsManager";
+import { requirePage } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 export default async function ToolLimitsPage() {
+  const admin = await requirePage("catalog.view");
   const [tools, bundles, plans, info] = await Promise.all([
     prisma.tool.findMany({ include: { category: true }, orderBy: [{ sort: "asc" }, { createdAt: "desc" }] }),
     prisma.bundle.findMany({ orderBy: { sort: "asc" } }),

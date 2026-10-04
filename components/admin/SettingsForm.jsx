@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import { ImageInput } from "./ResourceManager";
 import PasswordForm from "./PasswordForm";
-import TeamManager from "./TeamManager";
+import Link from "next/link";
+import { Users as TeamIcon, ArrowRight as GoIcon } from "lucide-react";
 import BrandLogo from "../BrandLogo";
 import { SETTINGS_TABS } from "@/lib/settingsSchema";
 import { parseOff } from "@/lib/payments";
@@ -302,7 +303,7 @@ function Checklist({ v, go }) {
 }
 
 /* ------------------------------------------------------------- main form */
-export default function SettingsForm({ initial, defaults = {}, initialTab = "", focus = "", nonce = "" }) {
+export default function SettingsForm({ initial, defaults = {}, initialTab = "", focus = "", nonce = "", canManage = true }) {
   const [saved, setSaved] = useState(initial);
   const [v, setV] = useState(initial);
   const [rev, setRev] = useState(0); // bumps to remount the list editors after discard/import
@@ -329,7 +330,7 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
     return () => clearTimeout(go);
   }, [focus, nonce]);
 
-  const set = (k, x) => setV((p) => ({ ...p, [k]: x }));
+  const set = (k, x) => canManage && setV((p) => ({ ...p, [k]: x }));
   const dirtyKeys = useMemo(() => ALL_KEYS.filter((k) => (v[k] ?? "") !== (saved[k] ?? "")), [v, saved]);
   const dirtySet = new Set(dirtyKeys);
   const flash = (ok, text) => { setToast({ ok, text }); setTimeout(() => setToast(null), 2800); };
@@ -388,7 +389,11 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
       return (
         <div key="sec" className="space-y-5">
           <PasswordForm />
-          <TeamManager />
+          <Link href="/admin/team" className="group flex items-center gap-4 rounded-2xl border border-line bg-panel p-5 hover:border-brand/50 transition-colors">
+            <span className="w-11 h-11 rounded-xl bg-brand/15 text-brand flex items-center justify-center shrink-0"><TeamIcon size={20} /></span>
+            <span className="flex-1 min-w-0"><span className="block font-display font-semibold">Team & Roles</span><span className="block text-sm text-mist mt-0.5">Add members, give each one a role with exactly the permissions they need, suspend access and see the activity log.</span></span>
+            <GoIcon size={18} className="text-mist group-hover:text-brand group-hover:translate-x-0.5 transition-all" />
+          </Link>
           <Card title="Backup & restore" hint="Download every setting on this page as a file, or load one back. Loading only fills the form; nothing changes until you press Save. The file includes private keys, so keep it safe.">
             <div className="flex flex-wrap gap-3">
               <button type="button" onClick={exportJson} className="btn-ghost"><Download size={15} /> Export settings</button>

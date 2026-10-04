@@ -5,12 +5,15 @@ import { getToolInfo, setSoon } from "@/lib/limits";
 import { getSettings } from "@/lib/settings";
 import { submitUrl } from "@/lib/indexnow";
 
+import { guard, audit } from "@/lib/adminAuth";
+import { resourcePerm } from "@/lib/resources";
+
 export const dynamic = "force-dynamic";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
 export async function GET(req, { params }) {
-  if (!requireAdmin()) return deny();
+  { const g = await guard(resourcePerm(params.resource, "view")); if (g.res) return g.res; }
   const res = getResource(params.resource);
   if (!res) return NextResponse.json({ error: "Unknown resource" }, { status: 404 });
 
@@ -42,7 +45,8 @@ export async function GET(req, { params }) {
 }
 
 export async function POST(req, { params }) {
-  if (!requireAdmin()) return deny();
+  const { admin, res: denied } = await guard(resourcePerm(params.resource, "manage"));
+  if (denied) return denied;
   const res = getResource(params.resource);
   if (!res || res.noCreate) return NextResponse.json({ error: "Not allowed" }, { status: 404 });
 
@@ -54,6 +58,7 @@ export async function POST(req, { params }) {
   if (res.slugFrom) data.slug = slugify(data[res.slugFrom]);
   try {
     const row = await prisma[res.model].create({ data });
+    audit(admin, `${params.resource}.create`, { target: row.name || row.title || row.question || row.id, req });
     if (body.soon === true) await setSoon(row.id, true);
     if (res.model === "tool" && row.active) getSettings().then((s) => submitUrl(s, `/tool/${row.slug}`)).catch(() => {});
     return NextResponse.json({ row });

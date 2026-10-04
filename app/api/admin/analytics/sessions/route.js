@@ -3,13 +3,14 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { dhakaDay, dhakaStart, addDays } from "@/lib/dhaka";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 const PAGE = 25;
 
 // GET ?days=7&q=&page=1 - one row per visitor (grouped by their browser session), newest activity first.
 export async function GET(req) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  { const g = await guard("analytics.view"); if (g.res) return g.res; }
   const u = new URL(req.url).searchParams;
   const days = Math.min(90, Math.max(1, parseInt(u.get("days"), 10) || 7));
   const page = Math.max(1, parseInt(u.get("page"), 10) || 1);

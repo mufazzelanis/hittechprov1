@@ -1,4 +1,5 @@
 import ResourceManager from "@/components/admin/ResourceManager";
+import { requirePage, hasPerm } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -6,11 +7,13 @@ export const dynamic = "force-dynamic";
 // camelCase but the URL is kebab-case ("wallet-topups") - the generic route does a direct
 // RESOURCES[params.resource] lookup with no case conversion, so it 404s on any multi-word resource whose
 // key doesn't literally match its URL segment (see also /admin/smm-services for the same reason).
-export default function WalletTopupsAdminPage({ searchParams }) {
+export default async function WalletTopupsAdminPage({ searchParams }) {
+  const admin = await requirePage("affiliates.view");
   return (
     <ResourceManager
       key={`walletTopups|${searchParams?.status || ""}|${searchParams?.q || ""}|${searchParams?.edit || ""}|${searchParams?.new || ""}|${searchParams?.t || ""}`}
       name="walletTopups"
+      canManage={hasPerm(admin, "affiliates.manage")}
       initialStatus={String(searchParams?.status || "")}
       initialQ={String(searchParams?.q || "")}
       initialEdit={String(searchParams?.edit || "")}

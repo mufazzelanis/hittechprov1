@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { dhakaDay, dhakaStart, addDays, validDay, daysBetween } from "@/lib/dhaka";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const group = (rows, keyFn) => {
 
 // GET ?from=YYYY-MM-DD&to=YYYY-MM-DD&status=PAID,DELIVERED  (days are Bangladesh calendar days)
 export async function GET(req) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  { const g = await guard("sales.view"); if (g.res) return g.res; }
   const u = new URL(req.url).searchParams;
   const today = dhakaDay(new Date());
   let to = validDay(u.get("to")) ? u.get("to") : today;

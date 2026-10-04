@@ -6,6 +6,7 @@ import { smmBalance } from "@/lib/smmiu";
 import { dhakaDay, dhakaStart, addDays } from "@/lib/dhaka";
 import RevenueChart from "@/components/admin/RevenueChart";
 import CountUp from "@/components/CountUp";
+import { requirePage } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,7 @@ const PROVIDER_STYLE = {
 };
 
 export default async function SmmReportPage() {
+  const admin = await requirePage("growth.view");
   const [smmOrders, s] = await Promise.all([
     prisma.smmOrder.findMany({ include: { order: true, service: true }, orderBy: { createdAt: "desc" } }).catch(() => []),
     getSettings(),

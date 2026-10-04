@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CONTENT_DEFAULTS } from "@/lib/content";
 import { CONTENT_PAGES } from "@/lib/content";
+import { guard, hasPerm } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,11 @@ const SECRET = new Set(["coupons", "fbCapiToken"]);
 
 // GET ?q=...  -> records matching in the database (admin only). Static pages/settings are searched in the browser.
 export async function GET(req) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { admin, res: denied } = await guard("dashboard.view");
+  if (denied) return denied;
+  // Only search the areas this admin is allowed to see.
+  const may = (p) => hasPerm(admin, p);
+  const none = Promise.resolve([]);
   const q = (new URL(req.url).searchParams.get("q") || "").trim().slice(0, 80);
   if (q.length < 1) return NextResponse.json({ results: [] });
   const num = /^#?\d{1,9}$/.test(q) ? parseInt(q.replace("#", ""), 10) : null;
@@ -23,18 +28,18 @@ export async function GET(req) {
   const N = 6;
 
   const [tools, bundles, plans, cats, orders, leads, people, faqs, reviews, prompts, offers, texts] = await Promise.all([
-    prisma.tool.findMany({ where: orAll(["name", "slug", "description"], q), take: N, include: { category: true }, orderBy: { name: "asc" } }),
-    prisma.bundle.findMany({ where: orAll(["name", "tagline", "tools"], q), take: N }),
-    prisma.packPlan.findMany({ where: orAll(["name", "tagline"], q), take: N }),
-    prisma.category.findMany({ where: has("name", q), take: N }),
-    prisma.order.findMany({ where: { OR: [...["name", "email", "phone", "itemName", "txnId", "refCode"].map((f) => has(f, q)), ...(num !== null ? [{ number: num }] : [])] }, take: 8, orderBy: { createdAt: "desc" } }),
-    prisma.lead.findMany({ where: orAll(["name", "email", "message", "phone"], q), take: N, orderBy: { createdAt: "desc" } }),
-    prisma.user.findMany({ where: { role: { not: "ADMIN" }, ...orAll(["name", "email", "phone", "refCode"], q) }, take: N, orderBy: { createdAt: "desc" } }),
-    prisma.faq.findMany({ where: orAll(["question", "answer"], q), take: 4 }),
-    prisma.review.findMany({ where: orAll(["name", "text"], q), take: 4 }),
-    prisma.prompt ? prisma.prompt.findMany({ where: orAll(["title", "category", "tags", "promptText"], q), take: N }).catch(() => []) : [],
-    prisma.setting.findMany({ where: { key: { startsWith: "freeoffer:" }, value: { contains: q } }, take: 4 }),
-    prisma.setting.findMany({ where: { value: { contains: q }, key: { in: Object.keys(CONTENT_DEFAULTS) } }, take: 8 }),
+    !may("catalog.view") ? none : prisma.tool.findMany({ where: orAll(["name", "slug", "description"], q), take: N, include: { category: true }, orderBy: { name: "asc" } }),
+    !may("catalog.view") ? none : prisma.bundle.findMany({ where: orAll(["name", "tagline", "tools"], q), take: N }),
+    !may("catalog.view") ? none : prisma.packPlan.findMany({ where: orAll(["name", "tagline"], q), take: N }),
+    !may("catalog.view") ? none : prisma.category.findMany({ where: has("name", q), take: N }),
+    !may("orders.view") ? none : prisma.order.findMany({ where: { OR: [...["name", "email", "phone", "itemName", "txnId", "refCode"].map((f) => has(f, q)), ...(num !== null ? [{ number: num }] : [])] }, take: 8, orderBy: { createdAt: "desc" } }),
+    !may("growth.view") ? none : prisma.lead.findMany({ where: orAll(["name", "email", "message", "phone"], q), take: N, orderBy: { createdAt: "desc" } }),
+    !may("orders.view") ? none : prisma.user.findMany({ where: { role: { not: "ADMIN" }, ...orAll(["name", "email", "phone", "refCode"], q) }, take: N, orderBy: { createdAt: "desc" } }),
+    !may("content.view") ? none : prisma.faq.findMany({ where: orAll(["question", "answer"], q), take: 4 }),
+    !may("content.view") ? none : prisma.review.findMany({ where: orAll(["name", "text"], q), take: 4 }),
+    !may("growth.view") ? none : prisma.prompt ? prisma.prompt.findMany({ where: orAll(["title", "category", "tags", "promptText"], q), take: N }).catch(() => []) : [],
+    !may("growth.view") ? none : prisma.setting.findMany({ where: { key: { startsWith: "freeoffer:" }, value: { contains: q } }, take: 4 }),
+    !may("content.view") ? none : prisma.setting.findMany({ where: { value: { contains: q }, key: { in: Object.keys(CONTENT_DEFAULTS) } }, take: 8 }),
   ]);
 
   const r = [];

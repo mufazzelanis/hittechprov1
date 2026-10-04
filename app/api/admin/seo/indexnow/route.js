@@ -5,13 +5,14 @@ import { requireAdmin } from "@/lib/apiHelpers";
 import { getSettings } from "@/lib/settings";
 import { sitemapEntries } from "@/lib/sitemapEntries";
 import { submitUrls } from "@/lib/indexnow";
+import { guard } from "@/lib/adminAuth";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
 // "Resubmit everything" button in Admin -> Settings -> SEO: pushes every indexable URL (the same list
 // the sitemap already exposes) to IndexNow right now, instead of waiting for Bing/Yandex's next crawl.
 export async function POST() {
-  if (!requireAdmin()) return deny();
+  { const g = await guard("settings.manage"); if (g.res) return g.res; }
   if (!process.env.INDEXNOW_KEY) return NextResponse.json({ error: "INDEXNOW_KEY is not configured in .env" }, { status: 400 });
 
   const s = await getSettings();

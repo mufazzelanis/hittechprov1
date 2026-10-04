@@ -7,7 +7,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCart } from "./CheckoutProvider";
 import { navStart } from "./LoadingSystem";
 import Logo from "./Logo";
-import { Menu, X, Home, Wrench, Package, Users, Clock, User, Flame, ShoppingCart, Gift, Wand2, ChevronDown, Share2 } from "lucide-react";
+import { Menu, X, Home, Wrench, Package, Users, Clock, User, Flame, ShoppingCart, Gift, Wand2, ChevronDown, Share2, LayoutTemplate, Briefcase } from "lucide-react";
+
+const NewBadge = ({ text }) => <span className="text-[8px] leading-none font-bold uppercase tracking-wide bg-emerald-500/15 text-emerald-400 px-1 py-[3px] rounded">{text}</span>;
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
 
@@ -27,6 +29,8 @@ const ALL_LINKS = [
     label: "Exclusive Deals", icon: Flame, dot: true,
     children: [
       { label: "Exclusive Deals", href: "/tools?cat=Personal", icon: Flame, dot: true, desc: "Personal tools, not shared" },
+      { label: "Templates & Designs", href: "/templates", icon: LayoutTemplate, desc: "Canva templates, branding & landing pages", badge: "New" },
+      { label: "Design & Marketing Services", href: "/services", icon: Briefcase, desc: "Logos, landing pages, social media & ads", badge: "New" },
       { label: "Prompt Vault", href: "/prompts", icon: Wand2, soonKey: "prompts", desc: "AI prompts for ChatGPT, Midjourney" },
       { label: "SMM Service", href: "/smm-panel", icon: Share2, soonKey: "smm", desc: "Followers, likes & views" },
     ],
@@ -167,7 +171,7 @@ export default function Nav({ name = "HiT Tech Pro", logo = "", affiliate = true
                       {l.children.map((c) => (
                         <Link key={c.label} href={c.href} onClick={() => { setOpen(false); setMobileSub(false); }} className="flex items-center gap-3 py-2.5 text-mist hover:text-fg">
                           {c.dot ? DOT : <c.icon size={16} />} {c.label}
-                          {isSoon(c) && <Soon />}
+                          {isSoon(c) ? <Soon /> : c.badge && <NewBadge text={c.badge} />}
                         </Link>
                       ))}
                     </motion.div>
@@ -230,13 +234,13 @@ function DesktopDropdown({ item, active, isSoon, Soon }) {
           <motion.div
             role="menu" aria-label={item.label}
             initial={{ opacity: 0, y: -6, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.97 }} transition={{ duration: 0.15 }}
-            className="absolute left-0 top-full mt-2 w-64 rounded-xl border border-line bg-panel p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)]"
+            className="absolute left-0 top-full mt-2 w-80 rounded-xl border border-line bg-panel p-1.5 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.6)]"
           >
             {item.children.map((c) => (
               <Link key={c.label} href={c.href} role="menuitem" onClick={() => setOpen(false)} className="flex items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-panel2 transition-colors">
                 <span className="mt-0.5 shrink-0 text-brand">{c.dot ? DOT : <c.icon size={16} />}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 text-sm font-medium text-fg">{c.label}{isSoon(c) && <Soon />}</span>
+                  <span className="flex items-center gap-2 text-sm font-medium text-fg">{c.label}{isSoon(c) ? <Soon /> : c.badge && <NewBadge text={c.badge} />}</span>
                   {c.desc && <span className="block text-xs text-mist mt-0.5">{c.desc}</span>}
                 </span>
               </Link>

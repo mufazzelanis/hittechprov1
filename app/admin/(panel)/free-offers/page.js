@@ -2,10 +2,12 @@ import { getSettings } from "@/lib/settings";
 import { getOffers } from "@/lib/offers";
 import MasterToggle from "@/components/admin/MasterToggle";
 import FreeOffersManager from "@/components/admin/FreeOffersManager";
+import { requirePage } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 export default async function FreeOffersAdminPage() {
+  const admin = await requirePage("growth.view");
   const [s, offers] = await Promise.all([getSettings(), getOffers()]);
   return (
     <div className="space-y-6">

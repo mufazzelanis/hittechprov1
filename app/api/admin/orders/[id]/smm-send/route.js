@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/apiHelpers";
 import { smmAddOrder } from "@/lib/smmiu";
 import { logOrderEvent } from "@/lib/orderEvents";
+import { guard } from "@/lib/adminAuth";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -12,7 +13,8 @@ const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 // since payment here is verified manually, same as every other order type on the site). Refuses to send
 // twice: once providerOrderId is set, this order is done as far as this route is concerned.
 export async function POST(req, { params }) {
-  const session = requireAdmin();
+  const { admin: session, res: denied } = await guard("orders.manage");
+  if (denied) return denied;
   if (!session) return deny();
 
   const smmOrder = await prisma.smmOrder.findUnique({ where: { orderId: params.id }, include: { service: true, order: true } });

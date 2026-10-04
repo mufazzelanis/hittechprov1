@@ -11,6 +11,29 @@ import { getChannels } from "@/lib/channels";
 import { withText, fillMsg, waChannel } from "@/lib/wa";
 import { MessageCircle } from "lucide-react";
 import { ensureRefCode, affiliateStats, affiliateOn } from "@/lib/affiliate";
+import Purchases from "@/components/account/Purchases";
+import { orderLines, orderEntitlements, isPaid } from "@/lib/purchases";
+import { PAYONEER_METHOD } from "@/lib/catalog";
+
+const publicFiles = (files) => files.map(({ id, name, size }) => ({ id, name, size }));
+
+// Orders that contain a template or service, shaped for the "My purchases" cards.
+async function purchaseCards(orders) {
+  const mine = orders.filter((o) => orderLines(o).some((l) => l.type === "product" || l.type === "service") || o.method === PAYONEER_METHOD);
+  return Promise.all(mine.map(async (o) => {
+    const paid = isPaid(o);
+    const e = paid ? await orderEntitlements(o) : { products: [], services: [], delivery: [] };
+    return {
+      id: o.id, number: o.number, itemName: o.itemName, amount: o.amount, usdAmount: o.usdAmount, status: o.status,
+      date: new Date(o.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+      paid, payoneer: o.method === PAYONEER_METHOD, payLink: o.status === "PENDING" ? o.payLink : null,
+      brief: o.brief || "", deliveryNote: paid ? o.deliveryNote || "" : "",
+      products: e.products.map((p) => ({ ...p, files: publicFiles(p.files) })),
+      services: e.services,
+      delivery: publicFiles(e.delivery),
+    };
+  }));
+}
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Client Area — HiT Tech Pro", robots: { index: false } };
@@ -43,6 +66,7 @@ export default async function AccountPage() {
     walletBalance(user.id),
     prisma.walletTopup.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 }),
   ]);
+  const purchases = await purchaseCards(orders);
   const min = parseInt(s.affMinPayout, 10) || 0;
   const wa = waChannel(getChannels(s));
   const methods = getPaymentOptions(s).map((o) => o.name);
@@ -64,6 +88,8 @@ export default async function AccountPage() {
           </div>
           <LogoutButton />
         </div>
+
+        <Purchases orders={purchases} />
 
         <WalletCard balance={balance} methods={methods} topups={topups} />
 

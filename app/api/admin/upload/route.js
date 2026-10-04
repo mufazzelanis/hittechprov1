@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { getSession } from "@/lib/auth";
+import { guard } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 const TYPES = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/svg+xml": "svg" };
 
 export async function POST(req) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  { const g = await guard(["catalog.manage","store.manage","content.manage","growth.manage","settings.manage"]); if (g.res) return g.res; }
   const form = await req.formData();
   const file = form.get("file");
   if (!file || typeof file === "string") return NextResponse.json({ error: "No file" }, { status: 400 });

@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   LayoutDashboard, ShoppingCart, Wrench, Tags, Package, Layers, MessageSquareQuote, HelpCircle,
   Settings, Inbox, Wallet, BarChart3, FileText, Users, Gauge, Gift, LogOut, Menu, X, ExternalLink, Wand2, Activity,
-  PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, Share2, PiggyBank,
+  PanelLeftClose, PanelLeftOpen, ChevronDown, ChevronRight, Share2, PiggyBank, LayoutTemplate, Briefcase, ShieldCheck,
 } from "lucide-react";
 import { NAV } from "@/lib/resources";
 import Logo from "@/components/Logo";
@@ -15,8 +15,10 @@ import { navStart } from "@/components/LoadingSystem";
 import AdminSearch from "./AdminSearch";
 import NotificationBell from "./NotificationBell";
 import ThemeToggle from "@/components/ThemeToggle";
+import { can, PAGE_PERMS } from "@/lib/permissions";
 
 const ICONS = {
+  products: LayoutTemplate, services: Briefcase, team: ShieldCheck,
   dashboard: LayoutDashboard, orders: ShoppingCart, sales: BarChart3, analytics: Activity, tools: Wrench, categories: Tags, bundles: Package,
   leads: Inbox, offers: Gift, prompts: Wand2, limits: Gauge, affiliates: Users, payouts: Wallet, content: FileText, plans: Layers, reviews: MessageSquareQuote, faqs: HelpCircle, settings: Settings, smm: Share2, smmReport: BarChart3, wallet: PiggyBank,
 };
@@ -24,10 +26,11 @@ const ICONS = {
 // Sidebar sections. Any NAV entry not listed here lands in "More" so a new page never disappears.
 const GROUPS = [
   { id: "overview", label: "Overview", hrefs: ["/admin", "/admin/orders", "/admin/sales", "/admin/analytics"] },
+  { id: "store", label: "Store", hrefs: ["/admin/products", "/admin/services"] },
   { id: "catalog", label: "Catalog", hrefs: ["/admin/tools", "/admin/tool-limits", "/admin/categories", "/admin/bundles", "/admin/plans"] },
   { id: "growth", label: "Growth", hrefs: ["/admin/free-offers", "/admin/smm-services", "/admin/smm-report", "/admin/prompts", "/admin/leads", "/admin/affiliates", "/admin/payouts", "/admin/wallet-topups"] },
   { id: "content", label: "Content", hrefs: ["/admin/reviews", "/admin/faqs", "/admin/content"] },
-  { id: "system", label: "System", hrefs: ["/admin/settings"] },
+  { id: "system", label: "System", hrefs: ["/admin/settings", "/admin/team"] },
 ];
 const SECTIONS = (() => {
   const listed = new Set(GROUPS.flatMap((g) => g.hrefs));
@@ -50,7 +53,17 @@ function Badge({ n, compact }) {
     : <span className="ml-auto min-w-[22px] h-5 px-1.5 rounded-full bg-brand text-white text-[10px] font-bold flex items-center justify-center shadow-[0_4px_12px_-4px_rgb(var(--brand))]">{txt}</span>;
 }
 
-export default function AdminShell({ user, logo = "", initialCollapsed = false, children }) {
+// A role badge next to the signed-in admin's name.
+function RoleChip({ role, className = "" }) {
+  if (!role) return null;
+  return <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-px text-[9px] font-bold uppercase tracking-wider ${className}`} style={{ background: role.color + "26", color: role.color }}>{role.name}</span>;
+}
+
+export default function AdminShell({ user, perms = [], logo = "", initialCollapsed = false, children }) {
+  // Only the sections this admin's role can open. A page missing from PAGE_PERMS is Owner-only by default.
+  const allowed = (href) => can(perms, PAGE_PERMS[href] || "*");
+  const sections = SECTIONS.map((g) => ({ ...g, items: g.items.filter((n) => allowed(n.href)) })).filter((g) => g.items.length);
+  const bar = BAR.filter((n) => allowed(n.href));
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false); // mobile drawer
@@ -63,7 +76,7 @@ export default function AdminShell({ user, logo = "", initialCollapsed = false, 
 
   const isActive = (href) => (href === "/admin" ? path === "/admin" : path.startsWith(href));
   const current = NAV.find((n) => isActive(n.href));
-  const currentGroup = SECTIONS.find((g) => g.items.some((n) => isActive(n.href)));
+  const currentGroup = sections.find((g) => g.items.some((n) => isActive(n.href)));
   const CurIcon = current ? ICONS[current.icon] : LayoutDashboard;
 
   const toggleCollapsed = useCallback(() => {
@@ -147,7 +160,7 @@ export default function AdminShell({ user, logo = "", initialCollapsed = false, 
       </div>
 
       <nav className={`flex-1 overflow-y-auto overflow-x-hidden py-3 ${rail ? "px-2.5" : "px-3"}`} aria-label="Admin sections" onScroll={() => setTip(null)}>
-        {SECTIONS.map((g, gi) => {
+        {sections.map((g, gi) => {
           const closed = !rail && closedGroups.includes(g.id) && g.id !== currentGroup?.id;
           const groupCount = g.items.reduce((n, it) => n + (counts[it.href] || 0), 0);
           return (
@@ -204,7 +217,7 @@ export default function AdminShell({ user, logo = "", initialCollapsed = false, 
 
       <div className={`border-t border-line shrink-0 ${rail ? "p-2.5 space-y-1.5" : "p-3 space-y-2"}`}>
         {rail ? (
-          <div className="flex justify-center"><ThemeToggle /></div>
+          <div className="flex justify-center"><ThemeToggle align="start" /></div>
         ) : (
           <ThemeToggle variant="row" />
         )}
@@ -215,8 +228,9 @@ export default function AdminShell({ user, logo = "", initialCollapsed = false, 
           <span className="w-9 h-9 shrink-0 rounded-full bg-gradient-to-br from-brand to-brand-light text-white text-xs font-bold flex items-center justify-center" {...tipProps(user.name || user.email)}>{initials(user.name, user.email)}</span>
           {!rail && (
             <div className="min-w-0 flex-1 leading-tight">
-              <p className="text-sm font-semibold truncate">{user.name || "Admin"}</p>
+              <p className="text-sm font-semibold truncate flex items-center gap-1.5"><span className="truncate">{user.name || "Admin"}</span></p>
               <p className="text-[11px] text-mist truncate">{user.email}</p>
+              <RoleChip role={user.role} className="mt-1" />
             </div>
           )}
           <button type="button" onClick={logout} aria-label="Log out" {...tipProps("Log out")} className="p-2 rounded-lg text-mist hover:text-red-400 hover:bg-panel"><LogOut size={16} /></button>
@@ -287,7 +301,7 @@ export default function AdminShell({ user, logo = "", initialCollapsed = false, 
                 <span className="w-8 h-8 rounded-full bg-gradient-to-br from-brand to-brand-light text-white text-[11px] font-bold flex items-center justify-center">{initials(user.name, user.email)}</span>
                 <span className="hidden md:block text-left leading-tight max-w-[140px]">
                   <span className="block text-sm font-medium truncate">{user.name || "Admin"}</span>
-                  <span className="block text-[10px] text-mist truncate">{user.email}</span>
+                  <span className="block text-[10px] text-mist truncate">{user.role?.name || user.email}</span>
                 </span>
                 <ChevronDown size={14} className={`hidden sm:block text-mist transition-transform ${menu ? "rotate-180" : ""}`} />
               </button>
@@ -297,8 +311,9 @@ export default function AdminShell({ user, logo = "", initialCollapsed = false, 
                     <div className="px-3 py-2.5 border-b border-line mb-1">
                       <p className="text-sm font-semibold truncate">{user.name || "Admin"}</p>
                       <p className="text-[11px] text-mist truncate">{user.email}</p>
+                      <RoleChip role={user.role} className="mt-1.5" />
                     </div>
-                    <Link role="menuitem" href="/admin/settings" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-mist hover:text-fg hover:bg-panel2"><Settings size={15} /> Settings</Link>
+                    {allowed("/admin/settings") && <Link role="menuitem" href="/admin/settings" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-mist hover:text-fg hover:bg-panel2"><Settings size={15} /> Settings</Link>}
                     <a role="menuitem" href="/" target="_blank" rel="noreferrer" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-mist hover:text-fg hover:bg-panel2"><ExternalLink size={15} /> View website</a>
                     <button role="menuitem" type="button" onClick={toggleCollapsed} className="hidden lg:flex w-full items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-mist hover:text-fg hover:bg-panel2">
                       {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />} {collapsed ? "Expand" : "Collapse"} sidebar <kbd className="ml-auto text-[10px] rounded border border-line px-1.5 py-0.5">Ctrl B</kbd>
@@ -316,7 +331,7 @@ export default function AdminShell({ user, logo = "", initialCollapsed = false, 
 
       <nav aria-label="Admin" className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-line bg-ink/92 backdrop-blur-md" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <ul className="grid grid-cols-5">
-          {BAR.map((n) => {
+          {bar.map((n) => {
             const I = ICONS[n.icon];
             const on = isActive(n.href);
             return (

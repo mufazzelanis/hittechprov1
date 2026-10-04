@@ -37,6 +37,45 @@ model User {
   resetTokenHash   String?
   resetTokenExpiry DateTime?
   createdAt DateTime @default(now())
+  // ---- Admin team (only meaningful when role = ADMIN) ----
+  adminRoleId  String?
+  adminRole    AdminRole? @relation(fields: [adminRoleId], references: [id], onDelete: Restrict)
+  // false = suspended: can't sign in, and any open admin session stops working immediately.
+  active       Boolean    @default(true)
+  // Bumped on suspend / role change / password change / "sign out everywhere": every login token carries
+  // the version it was issued with, and a token whose version no longer matches is rejected on the spot.
+  tokenVersion Int        @default(0)
+  lastLoginAt  DateTime?
+}
+
+// A named set of admin permissions (see lib/permissions.js). System roles ship with the app; Owner is
+// locked to full access. A role with members can't be deleted (members must be moved first), so nobody
+// ever silently ends up without a role.
+model AdminRole {
+  id          String   @id @default(cuid())
+  key         String?  @unique // system role key ("owner", "admin", ...); null for custom roles
+  name        String
+  description String?  @db.Text
+  permissions String   @db.Text // JSON array of permission keys, or ["*"]
+  color       String   @default("#E8352B")
+  system      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  users       User[]
+}
+
+// Who did what in the admin panel: sign-ins, team and role changes, settings, catalog edits, orders.
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorName String?
+  action    String // e.g. "auth.login", "team.role_change", "orders.update"
+  target    String?
+  detail    String?  @db.Text
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([action])
 }
 
 model Category {
@@ -127,6 +166,58 @@ model Order {
   createdAt DateTime    @default(now())
   events    OrderEvent[]
   smmOrder  SmmOrder?
+  // What was bought, line by line: [{ type, id, name, price, priceUsd, pkg?, files? }]. Product lines keep
+  // a snapshot of their files so a buyer never loses a download if the product is later edited or removed.
+  lines         Json?
+  // Dollar amount for international (Payoneer) orders, fixed at the moment the order was placed.
+  usdAmount     Float?
+  // Payoneer payment-request URL the admin pastes in; the buyer gets it by email and in the Client Area.
+  payLink       String?     @db.Text
+  // Service orders: the buyer's requirements, sent from the Client Area after ordering.
+  brief         String?     @db.Text
+  // Last delivery message sent to the buyer (also shown in their Client Area), and delivered files.
+  deliveryNote  String?     @db.Text
+  deliveryFiles Json?
+}
+
+// Digital products sold for instant download: Canva templates, design files, landing page kits...
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  kind         String   @default("Canva Template")
+  tagline      String?
+  description  String   @db.Text
+  image        String?  @db.Text
+  gallery      String?  @db.Text // extra preview image URLs, one per line
+  price        Int // ৳, for bKash/Nagad/Rocket buyers
+  priceUsd     Float    @default(0) // $, for international buyers; 0 = convert from ৳ at the site's dollar rate
+  previewUrl   String?  @db.Text // live demo / Canva preview link
+  includes     String?  @db.Text // "What's included", one per line
+  deliveryText String?  @db.Text // shown only to paying buyers, e.g. the Canva template link
+  files        String?  @db.Text // JSON: [{ id, name, stored, size }] - private files, never public URLs
+  featured     Boolean  @default(false)
+  active       Boolean  @default(true)
+  sort         Int      @default(0)
+  createdAt    DateTime @default(now())
+}
+
+// Done-for-you services (design, landing pages, digital marketing) sold in Basic/Standard/Premium packages.
+model Service {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  kind        String   @default("Graphic Design")
+  tagline     String?
+  description String   @db.Text
+  image       String?  @db.Text
+  gallery     String?  @db.Text // portfolio image URLs, one per line
+  packages    String   @db.Text // JSON: [{ name, price, priceUsd, days, revisions, features: [] }]
+  questions   String?  @db.Text // what the buyer is asked after ordering, one question per line
+  featured    Boolean  @default(false)
+  active      Boolean  @default(true)
+  sort        Int      @default(0)
+  createdAt   DateTime @default(now())
 }
 
 // Audit trail for one order: every status change (logged automatically) plus admin notes and

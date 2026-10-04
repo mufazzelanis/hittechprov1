@@ -1,19 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getSession } from "@/lib/auth";
 import { SETTING_DEFAULTS } from "@/lib/settingsDefaults";
+import { guard, audit } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function PUT(req) {
-  if (!getSession()) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { admin, res } = await guard("settings.manage");
+  if (res) return res;
   const body = await req.json().catch(() => ({}));
-  const ops = Object.keys(SETTING_DEFAULTS)
-    .filter((k) => k in body)
-    .map((key) => {
-      const value = String(body[key] ?? "");
-      return prisma.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
-    });
-  await prisma.$transaction(ops);
+  const keys = Object.keys(SETTING_DEFAULTS).filter((k) => k in body);
+  const before = Object.fromEntries((await prisma.setting.findMany({ where: { key: { in: keys } } })).map((r) => [r.key, r.value]));
+  const changed = keys.filter((k) => (before[k] ?? SETTING_DEFAULTS[k]) !== String(body[k] ?? ""));
+  await prisma.$transaction(keys.map((key) => {
+    const value = String(body[key] ?? "");
+    return prisma.setting.upsert({ where: { key }, update: { value }, create: { key, value } });
+  }));
+  // Names only, never values: some settings are secret keys and tokens.
+  if (changed.length) await audit(admin, "settings.update", { target: `${changed.length} setting(s)`, detail: changed.join(", "), req });
   return NextResponse.json({ ok: true });
 }

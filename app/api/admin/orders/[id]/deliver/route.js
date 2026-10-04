@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/apiHelpers";
 import { sendMail } from "@/lib/mailer";
 import { logOrderEvent } from "@/lib/orderEvents";
 import { getSettings } from "@/lib/settings";
+import { guard } from "@/lib/adminAuth";
 
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 const nl2br = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>");
@@ -14,7 +15,8 @@ const nl2br = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").repl
 // DELIVERED in the same step. This is the one place an order's actual delivery gets sent - everywhere
 // else (status dropdown, bulk edit) only changes the record, never contacts the customer.
 export async function POST(req, { params }) {
-  const session = requireAdmin();
+  const { admin: session, res: denied } = await guard("orders.manage");
+  if (denied) return denied;
   if (!session) return deny();
 
   const { message, markDelivered } = await req.json().catch(() => ({}));
@@ -31,11 +33,12 @@ export async function POST(req, { params }) {
     text: `Hi ${order.name},\n\n${clean}\n\n— ${s.siteName}`,
     html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1c1c28">
       <h2 style="margin:0 0 12px">Your order is ready</h2>
-      <p>Hi ${order.name},</p>
+      <p>Hi ${nl2br(order.name)},</p>
       <p style="white-space:pre-wrap">${nl2br(clean)}</p>
-      <p style="color:#6b7280;font-size:13px;margin-top:24px">Order #${order.number} · ${order.itemName}</p>
+      <p style="color:#6b7280;font-size:13px;margin-top:24px">Order #${order.number} · ${nl2br(order.itemName)}</p>
     </div>`,
   });
+  await prisma.order.update({ where: { id: params.id }, data: { deliveryNote: clean.slice(0, 5000) } });
   await logOrderEvent(params.id, "delivery", `Delivery email sent to ${order.email}: ${clean.slice(0, 300)}`, session.name);
 
   if (markDelivered && order.status !== "DELIVERED") {
