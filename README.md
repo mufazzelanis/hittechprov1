@@ -79,6 +79,11 @@ All of these live in `.env` (never committed - see `.env.example` for the docume
 | `JWT_SECRET` | Long random string used to sign login sessions. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. Use a **different** value in production than in local dev. |
 | `ADMIN_EMAIL` | Email of the admin account created by `npm run seed` |
 | `ADMIN_PASSWORD` | Password of that seeded admin account - **change it from the admin panel after your first real login** |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Optional. Needed for "Forgot password" and order-delivery emails to actually send. Without these, reset links/delivery emails are only printed to the server console. |
+| `SMMIU_API_KEY` | Optional. Needed only for the SMM Panel feature (my.smmiu.com). |
+| `INDEXNOW_KEY` | Optional. Lets the site auto-notify Bing/Yandex when a page changes. Any random string. |
+
+See `.env.example` for the full, commented template - copy it to `.env` and fill in real values.
 
 ## 4. Admin panel
 
@@ -92,6 +97,10 @@ All of these live in `.env` (never committed - see `.env.example` for the docume
   the server's disk. That folder is intentionally excluded from git (`.gitignore`) since it's runtime
   data, not source code - see [section 9](#9-updating-the-live-site-later) for why that matters when you
   redeploy, and [section 10](#10-go-live-checklist) for backing it up.
+- Paid files for Digital Products and Services (Canva templates, delivered design files) are saved to
+  `storage/private/` - deliberately **outside** `public/`, so they can never be downloaded by a direct
+  URL, only through the signed `/api/downloads/...` route after checking the buyer actually paid. This
+  folder is also excluded from git and needs exactly the same redeploy/backup care as `public/uploads/`.
 
 ## 5. Mobile app (PWA)
 
@@ -195,20 +204,9 @@ cPanel → *Setup Node.js App* → **Create Application**:
 - **Application URL**: your domain (or a subdomain, e.g. `app.yourdomain.com`)
 - **Application startup file**: `server.js` (see step 4 - Next.js doesn't ship one, you add a tiny one)
 
-Next.js's own server doesn't speak cPanel's Passenger protocol directly, so add this one small file at
-the project root as `server.js` (this repo does not include it by default since it's server-specific):
-```js
-const { createServer } = require("http");
-const next = require("next");
-
-const app = next({ dev: false });
-const handle = app.getRequestHandler();
-
-app.prepare().then(() => {
-  createServer((req, res) => handle(req, res)).listen(process.env.PORT || 3000);
-});
-```
-Passenger sets `process.env.PORT` itself; you don't choose a port.
+Next.js's own server doesn't speak cPanel's Passenger protocol directly, so this repo ships a tiny
+`server.js` at the project root just for this - Passenger sets `process.env.PORT` itself; you don't
+choose a port.
 
 **4) Environment variables**
 In the same *Setup Node.js App* page, use **Add Variable** to set `DATABASE_URL`, `JWT_SECRET`,
@@ -304,7 +302,8 @@ npx prisma db push            # only if prisma/schema.prisma changed
 npm run build
 ```
 then restart the app (cPanel: *Setup Node.js App* → Restart, or `pm2 restart hittechpro` on a VPS).
-`public/uploads/` is never touched by `git pull` - your real uploaded images stay exactly where they are.
+`public/uploads/` and `storage/private/` are never touched by `git pull` - your real uploaded images and
+paid customer files stay exactly where they are.
 
 ## 10. Go-live checklist
 
@@ -316,7 +315,8 @@ then restart the app (cPanel: *Setup Node.js App* → Restart, or `pm2 restart h
 - [ ] A test order placed end-to-end and marked PAID, to confirm email/notification flow works
 - [ ] `/privacy`, `/terms`, `/refund` reviewed for your actual business
 - [ ] A backup plan for the MySQL database (cPanel → *Backup Wizard*, or a cron'd `mysqldump` on a VPS)
-      and for `public/uploads/` (it holds real uploaded images and is not in git)
+      and for `public/uploads/` and `storage/private/` (real uploaded images and paid customer files -
+      neither is in git, and losing `storage/private/` means losing files customers already paid for)
 
 ## 11. Troubleshooting
 
@@ -330,6 +330,10 @@ then restart the app (cPanel: *Setup Node.js App* → Restart, or `pm2 restart h
   existed in `public/` when the server started; anything uploaded afterwards is served through
   `app/uploads/[name]/route.js` instead (already handled by the code) - a 404 here usually means the
   `public/uploads/` folder isn't writable by the app's user, or the app was restarted mid-upload.
+- **A paid template/service file won't download, or the admin file upload fails** - same cause as above
+  but for `storage/private/`: the app creates this folder itself on first upload, so it just needs the
+  app's user to have write permission on the application root. If it still fails, create the folder by
+  hand (`mkdir -p storage/private` in the app root) and check its permissions.
 - **Site works over `http://` but the "Install app" banner / push-style features don't show** - PWA
   install and some browser APIs only work on `localhost` or real HTTPS - finish step 8's SSL setup first.
 - **cPanel Node app shows "Application could not be started"** - open its **Log** in *Setup Node.js App*;
