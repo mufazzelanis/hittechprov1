@@ -101,6 +101,82 @@ function Field({ f, v, set, defaults, dirty }) {
   );
 }
 
+/* ------------------------------------------------------- custom: footer */
+function parseFooterColumns(json) {
+  let cols = [];
+  try { cols = JSON.parse(json || "[]"); } catch {}
+  if (!Array.isArray(cols)) cols = [];
+  return cols.map((c) => ({
+    id: ++rid,
+    title: String(c?.title || ""),
+    links: Array.isArray(c?.links) ? c.links.map((l) => ({ id: ++rid, label: String(l?.label || ""), href: String(l?.href || "") })) : [],
+  }));
+}
+
+function FooterColumnsEditor({ v, set }) {
+  const [cols, setCols] = useState(() => parseFooterColumns(v.footerColumns));
+  const maxCols = 4;
+  const push = (next) => {
+    setCols(next);
+    const out = next
+      .map((c) => ({ title: clean(c.title), links: c.links.map((l) => ({ label: clean(l.label), href: clean(l.href) })).filter((l) => l.label && l.href) }))
+      .filter((c) => c.title);
+    set("footerColumns", JSON.stringify(out));
+  };
+  const updCol = (id, patch) => push(cols.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  const moveCol = (i, d) => { const n = [...cols]; const j = i + d; if (j < 0 || j >= n.length) return; [n[i], n[j]] = [n[j], n[i]]; push(n); };
+  const addCol = () => push([...cols, { id: ++rid, title: "", links: [] }]);
+  const delCol = (id) => push(cols.filter((c) => c.id !== id));
+
+  const updLink = (colId, linkId, patch) => push(cols.map((c) => (c.id === colId ? { ...c, links: c.links.map((l) => (l.id === linkId ? { ...l, ...patch } : l)) } : c)));
+  const moveLink = (colId, i, d) => push(cols.map((c) => {
+    if (c.id !== colId) return c;
+    const n = [...c.links]; const j = i + d; if (j < 0 || j >= n.length) return c;
+    [n[i], n[j]] = [n[j], n[i]];
+    return { ...c, links: n };
+  }));
+  const addLink = (colId) => push(cols.map((c) => (c.id === colId ? { ...c, links: [...c.links, { id: ++rid, label: "", href: "" }] } : c)));
+  const delLink = (colId, linkId) => push(cols.map((c) => (c.id === colId ? { ...c, links: c.links.filter((l) => l.id !== linkId) } : c)));
+
+  return (
+    <Card title="Footer link columns" hint="The link columns shown in the site footer, between the About block and Contact Us. Add, remove, rename, reorder and relink anything here - it updates on every page as soon as you save. Links can be a path (/limits), a section on the home page (#tools) or a full https:// address.">
+      <div className="space-y-4">
+        <AnimatePresence initial={false}>
+          {cols.map((c, i) => (
+            <motion.div key={c.id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }} className="rounded-xl border border-line bg-panel2/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <input className="input flex-1 font-semibold" placeholder="Column title, e.g. Services" value={c.title} onChange={(e) => updCol(c.id, { title: e.target.value })} />
+                <span className="flex items-center shrink-0">
+                  <button type="button" onClick={() => moveCol(i, -1)} disabled={i === 0} aria-label="Move column left" className="p-2 text-mist hover:text-fg disabled:opacity-30"><ChevronUp size={16} /></button>
+                  <button type="button" onClick={() => moveCol(i, 1)} disabled={i === cols.length - 1} aria-label="Move column right" className="p-2 text-mist hover:text-fg disabled:opacity-30"><ChevronDown size={16} /></button>
+                  <button type="button" onClick={() => delCol(c.id)} aria-label="Delete column" className="p-2 text-mist hover:text-red-400"><Trash2 size={16} /></button>
+                </span>
+              </div>
+              <div className="space-y-2">
+                {c.links.map((l, j) => (
+                  <div key={l.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                    <input className="input" placeholder="Link text" value={l.label} onChange={(e) => updLink(c.id, l.id, { label: e.target.value })} />
+                    <input className="input font-mono text-xs" placeholder="/path, #section or https://..." value={l.href} onChange={(e) => updLink(c.id, l.id, { href: e.target.value })} />
+                    <span className="flex items-center shrink-0">
+                      <button type="button" onClick={() => moveLink(c.id, j, -1)} disabled={j === 0} aria-label="Move link up" className="p-1.5 text-mist hover:text-fg disabled:opacity-30"><ChevronUp size={14} /></button>
+                      <button type="button" onClick={() => moveLink(c.id, j, 1)} disabled={j === c.links.length - 1} aria-label="Move link down" className="p-1.5 text-mist hover:text-fg disabled:opacity-30"><ChevronDown size={14} /></button>
+                      <button type="button" onClick={() => delLink(c.id, l.id)} aria-label="Delete link" className="p-1.5 text-mist hover:text-red-400"><Trash2 size={14} /></button>
+                    </span>
+                  </div>
+                ))}
+                <button type="button" onClick={() => addLink(c.id)} className="btn-ghost !py-1.5 !px-3 text-xs"><Plus size={13} /> Add link</button>
+                {c.links.length === 0 && <p className="text-xs text-amber-300 flex items-center gap-1.5"><AlertCircle size={12} /> No links yet - this column stays hidden until it has at least one.</p>}
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+        {cols.length === 0 && <p className="text-sm text-mist">No footer columns yet - the footer shows only the About and Contact Us blocks.</p>}
+        <button type="button" onClick={addCol} disabled={cols.length >= maxCols} className="btn-ghost disabled:opacity-40"><Plus size={15} /> Add column{cols.length >= maxCols ? ` (max ${maxCols})` : ""}</button>
+      </div>
+    </Card>
+  );
+}
+
 /* ------------------------------------------------------ custom: payments */
 const clean = (s) => String(s || "").replace(/[|\r\n]+/g, " ").trim();
 let rid = 0;
@@ -377,7 +453,7 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
   const term = q.trim().toLowerCase();
   const matches = (f) => `${f.label} ${f.key} ${f.hintText || ""}`.toLowerCase().includes(term);
   const results = term ? TABS.flatMap((t) => t.blocks.flatMap((b) => (b.fields || []).filter(matches).map((f) => ({ t, b, f })))) : [];
-  const customHits = term ? TABS.flatMap((t) => t.blocks.filter((b) => b.custom && `${b.custom} ${t.label} payment coupon logo password`.includes(term)).map((b) => t)) : [];
+  const customHits = term ? TABS.flatMap((t) => t.blocks.filter((b) => b.custom && `${b.custom} ${t.label} payment coupon logo password footer link column menu navigation`.includes(term)).map((b) => t)) : [];
 
   const cur = TABS.find((t) => t.id === tab);
   const master = (b) => ({ on: v[b.master] === "true", onMaster: (x) => set(b.master, x ? "true" : "false") });
@@ -385,6 +461,7 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
   function renderBlock(b, i) {
     if (b.custom === "payments") return <PaymentsEditor key={"p" + rev} v={v} set={set} />;
     if (b.custom === "coupons") return <CouponsEditor key={"c" + rev} v={v} set={set} />;
+    if (b.custom === "footerColumns") return <FooterColumnsEditor key={"fc" + rev} v={v} set={set} />;
     if (b.custom === "security")
       return (
         <div key="sec" className="space-y-5">

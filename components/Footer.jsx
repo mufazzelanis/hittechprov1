@@ -5,19 +5,20 @@ import Logo from "./Logo";
 import { getPaymentOptions } from "@/lib/payments";
 import { getChannels } from "@/lib/channels";
 import { getSocialLinks } from "@/lib/socials";
+import { getFooterColumns } from "@/lib/footerLinks";
 import RichText from "./RichText";
 import { dhakaDay } from "@/lib/dhaka";
 
-const cols = [
-  { title: "Services", links: [["Premium SEO Tools", "#tools"], ["Marketing & Analytics", "#tools"], ["Design & Creative Suite", "#tools"], ["AI Content Creation", "#tools"]] },
-  { title: "Our Tools", links: [["All Tools", "#tools"], ["Bundles", "#bundles"], ["Private Accounts", "#custom"], ["Tool Limits", "/limits"], ["Free Offers", "/free-offers"]] },
-  { title: "About Us", links: [["Reviews", "#reviews"], ["Pricing & Plans", "#bundles"], ["FAQ", "#faq"], ["Contact Support", "#contact"]] },
-];
+// Literal strings (not built dynamically) so Tailwind's class scanner finds every one of them -
+// index = number of admin-defined link columns (0..4), beyond About + Contact which are always shown.
+const GRID_COLS = ["lg:grid-cols-2", "lg:grid-cols-3", "lg:grid-cols-4", "lg:grid-cols-5", "lg:grid-cols-6"];
 
 export default function Footer({ s }) {
   const [first, ...rest] = s.siteName.split(" ");
   const channels = getChannels(s);
   const socials = getSocialLinks(s);
+  const cols = getFooterColumns(s);
+  const gridCols = GRID_COLS[Math.min(cols.length, GRID_COLS.length - 1)];
 
   return (
     <>
@@ -55,7 +56,7 @@ export default function Footer({ s }) {
 
       <footer className="border-t border-line pt-16 pb-8 bg-gradient-to-b from-brand/[0.06] to-transparent">
         <div className="container-x">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-10">
+          <div className={`grid sm:grid-cols-2 ${gridCols} gap-10`}>
             <div>
               <div className="flex items-center gap-2 font-display font-bold text-lg mb-4">
                 <Logo src={s.logo} className="h-8" />
@@ -82,7 +83,9 @@ export default function Footer({ s }) {
               <div key={c.title}>
                 <p className="font-semibold text-sm mb-5">{c.title}</p>
                 <div className="flex flex-col text-xs text-mist">
-                  {c.links.map(([l, h]) => <a key={l} href={h} className="py-2 lg:py-1.5 hover:text-fg transition-colors">{l}</a>)}
+                  {c.links.map((l) => (
+                    <a key={l.label} href={l.href} target={/^https?:/i.test(l.href) ? "_blank" : undefined} rel={/^https?:/i.test(l.href) ? "noreferrer" : undefined} className="py-2 lg:py-1.5 hover:text-fg transition-colors">{l.label}</a>
+                  ))}
                 </div>
               </div>
             ))}
