@@ -8,3 +8,4 @@ public/uploads/
 *.log
 
 storage/
+.claude/settings.local.json

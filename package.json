@@ -8,10 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node --env-file=.env scripts/seed.js",
-    "db:push": "node scripts/prisma.js db push",
-    "prisma:generate": "node scripts/prisma.js generate",
-    "prisma:migrate": "node scripts/prisma.js migrate dev",
-    "postinstall": "node scripts/prisma.js generate"
+    "db:push": "node -e \"const r=require('child_process').spawnSync(process.platform==='win32'?'prisma.cmd':'prisma',['db','push','--schema',require('path').join(process.env.INIT_CWD||process.cwd(),'prisma','schema.prisma')],{stdio:'inherit',shell:process.platform==='win32'});process.exit(r.status==null?1:r.status)\"",
+    "prisma:generate": "node -e \"const r=require('child_process').spawnSync(process.platform==='win32'?'prisma.cmd':'prisma',['generate','--schema',require('path').join(process.env.INIT_CWD||process.cwd(),'prisma','schema.prisma')],{stdio:'inherit',shell:process.platform==='win32'});process.exit(r.status==null?1:r.status)\"",
+    "prisma:migrate": "node -e \"const r=require('child_process').spawnSync(process.platform==='win32'?'prisma.cmd':'prisma',['migrate','dev','--schema',require('path').join(process.env.INIT_CWD||process.cwd(),'prisma','schema.prisma')],{stdio:'inherit',shell:process.platform==='win32'});process.exit(r.status==null?1:r.status)\"",
+    "postinstall": "node -e \"const r=require('child_process').spawnSync(process.platform==='win32'?'prisma.cmd':'prisma',['generate','--schema',require('path').join(process.env.INIT_CWD||process.cwd(),'prisma','schema.prisma')],{stdio:'inherit',shell:process.platform==='win32'});process.exit(r.status==null?1:r.status)\""
   },
   "dependencies": {
     "@prisma/client": "5.17.0",
