@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ShoppingCart, Check, Zap, Loader2, MessageCircle, Clock } from "lucide-react";
 import { openSoon } from "@/lib/soon";
@@ -15,6 +15,11 @@ export default function ProductActions({ tool, wa, soon, soonLabel }) {
   const [pop, setPop] = useState(false);
   const [busy, setBusy] = useState(false);
   const item = { type: "tool", id: tool.id, name: tool.name, price: tool.price, per: `/${tool.duration}`, image: tool.image || null, accent: tool.accent || null };
+
+  useEffect(() => {
+    track("ViewContent", { content_ids: [tool.id], content_name: tool.name, content_type: "product", value: tool.price, currency: "BDT" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool.id]);
 
   return (
     <div className="flex flex-wrap gap-3">

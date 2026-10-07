@@ -8,6 +8,7 @@ import { ToolCover } from "./ToolsGrid";
 import Link from "next/link";
 import { spotMove } from "@/lib/spot";
 import { openSoon, openTool } from "@/lib/soon";
+import { track } from "@/lib/track";
 import RichText from "./RichText";
 
 const PAGE = 15;
@@ -25,6 +26,15 @@ export default function ToolsCatalog({ tools, categories, initialCat = "", initi
   }, [tools, q, cat]);
 
   useEffect(() => setCount(PAGE), [q, cat]);
+
+  // Fire a Search event only once the visitor pauses typing, and only for a real query -
+  // never on every keystroke (that would flood Meta with near-duplicate events).
+  useEffect(() => {
+    const query = q.trim();
+    if (query.length < 2) return;
+    const t = setTimeout(() => track("Search", { content_name: query, search_string: query }), 800);
+    return () => clearTimeout(t);
+  }, [q]);
 
   useEffect(() => {
     const el = sentinel.current;

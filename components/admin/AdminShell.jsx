@@ -19,13 +19,13 @@ import { can, PAGE_PERMS } from "@/lib/permissions";
 
 const ICONS = {
   products: LayoutTemplate, services: Briefcase, team: ShieldCheck,
-  dashboard: LayoutDashboard, orders: ShoppingCart, sales: BarChart3, analytics: Activity, tools: Wrench, categories: Tags, bundles: Package,
+  dashboard: LayoutDashboard, orders: ShoppingCart, sales: BarChart3, analytics: Activity, customers: Users, tools: Wrench, categories: Tags, bundles: Package,
   leads: Inbox, offers: Gift, prompts: Wand2, limits: Gauge, affiliates: Users, payouts: Wallet, content: FileText, plans: Layers, reviews: MessageSquareQuote, faqs: HelpCircle, settings: Settings, smm: Share2, smmReport: BarChart3, wallet: PiggyBank,
 };
 
 // Sidebar sections. Any NAV entry not listed here lands in "More" so a new page never disappears.
 const GROUPS = [
-  { id: "overview", label: "Overview", hrefs: ["/admin", "/admin/orders", "/admin/sales", "/admin/analytics"] },
+  { id: "overview", label: "Overview", hrefs: ["/admin", "/admin/orders", "/admin/sales", "/admin/analytics", "/admin/customers"] },
   { id: "store", label: "Store", hrefs: ["/admin/products", "/admin/services"] },
   { id: "catalog", label: "Catalog", hrefs: ["/admin/tools", "/admin/tool-limits", "/admin/categories", "/admin/bundles", "/admin/plans"] },
   { id: "growth", label: "Growth", hrefs: ["/admin/free-offers", "/admin/smm-services", "/admin/smm-report", "/admin/prompts", "/admin/leads", "/admin/affiliates", "/admin/payouts", "/admin/wallet-topups"] },

@@ -34,7 +34,7 @@ export default function LeadButton({ type = "contact", className = "", children 
     setSt({ busy: true, err: "", done: false });
     const r = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...f, type, visitorId: getVisitorId() }) });
     const j = await r.json().catch(() => ({}));
-    if (r.ok) track("Lead", { content_name: type });
+    if (r.ok) track("Lead", { content_name: type }, { user: { name: f.name, email: f.email, phone: f.phone } });
     setSt(r.ok ? { busy: false, err: "", done: true } : { busy: false, err: j.error || "Failed", done: false });
   }
 

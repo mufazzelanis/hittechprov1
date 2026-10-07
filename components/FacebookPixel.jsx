@@ -10,6 +10,16 @@ export default function FacebookPixel({ pixelId }) {
   const path = usePathname();
 
   useEffect(() => {
+    // Meta's own pixel script sets _fbc from fbclid once it loads, but on a fast first conversion
+    // (e.g. someone lands from an ad and buys within the first second) that race can be lost, which
+    // breaks CAPI attribution for that click. Fill it in ourselves if it's still missing - in the exact
+    // format Meta documents (fb.1.<ms-timestamp>.<fbclid>) - and never touch it again once it exists.
+    try {
+      if (!/(?:^|; )_fbc=/.test(document.cookie)) {
+        const fbclid = new URLSearchParams(location.search).get("fbclid");
+        if (fbclid) document.cookie = `_fbc=fb.1.${Date.now()}.${fbclid}; max-age=${90 * 86400}; path=/; SameSite=Lax`;
+      }
+    } catch {}
     track("PageView"); // no-op unless Pixel or Analytics is configured
   }, [path]);
 

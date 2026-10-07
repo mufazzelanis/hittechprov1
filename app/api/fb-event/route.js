@@ -25,18 +25,23 @@ export async function POST(req) {
   if (Array.isArray(d.content_ids)) custom.content_ids = d.content_ids.slice(0, 20).map((x) => String(x).slice(0, 60));
   if (d.content_name) custom.content_name = String(d.content_name).slice(0, 120);
   if (d.content_type === "product") custom.content_type = "product";
+  if (b.name === "Search" && d.search_string) custom.search_string = String(d.search_string).slice(0, 120);
 
   const url = String(b.url || "").slice(0, 500);
-  await sendCapi(s, [
+  // Optional {name, email, phone} the caller collected in the same action (e.g. a lead form)
+  // - hashed below for Conversions API match quality. Never echoed back, never logged.
+  const u = b.user && typeof b.user === "object" ? b.user : {};
+  const r = await sendCapi(s, [
     {
       event_name: b.name,
       event_time: Math.floor(Date.now() / 1000),
       event_id: String(b.eventId || "").slice(0, 80) || undefined,
       event_source_url: /^https?:\/\//i.test(url) ? url : undefined,
       action_source: "website",
-      user_data: userData({}, reqContext(req)),
+      user_data: userData({ name: u.name, email: u.email, phone: u.phone }, reqContext(req)),
       custom_data: Object.keys(custom).length ? custom : undefined,
     },
   ]);
+  if (!r.skipped && !r.ok) console.error("[fb-event] CAPI send failed", b.name, r.status || r.error);
   return new NextResponse(null, { status: 204 });
 }

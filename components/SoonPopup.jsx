@@ -33,7 +33,7 @@ export default function SoonPopup({ t, wa }) {
     setSt({ busy: true, err: "", done: false });
     const r = await fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...f, type: "soon-notify", message: `Coming soon: ${name}`, visitorId: getVisitorId() }) });
     const j = await r.json().catch(() => ({}));
-    if (r.ok) { track("Lead", { content_name: `soon: ${name}` }); setSt({ busy: false, err: "", done: true }); }
+    if (r.ok) { track("Lead", { content_name: `soon: ${name}` }, { user: { name: f.name, email: f.email } }); setSt({ busy: false, err: "", done: true }); }
     else setSt({ busy: false, err: j.error || "Something went wrong", done: false });
   }
 

@@ -95,7 +95,7 @@ export default function OffersGrid({ offers, t, user }) {
     const r = await fetch("/api/free-offers/claim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...f, offerId: sel.id, token: token.current, visitorId: getVisitorId() }) });
     const j = await r.json().catch(() => ({}));
     if (r.ok) {
-      track("Lead", { content_name: `free-offer: ${sel.name}` });
+      track("Lead", { content_name: `free-offer: ${sel.name}` }, { user: { name: f.name, email: f.email, phone: f.phone } });
       setSt({ busy: false, err: "", done: j });
     } else setSt({ busy: false, err: j.error || "Something went wrong", done: null });
   }

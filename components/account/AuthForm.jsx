@@ -87,7 +87,7 @@ export default function AuthForm({ initialMode = "login", next = "/account", aff
       body: JSON.stringify(body),
     });
     if (r.ok) {
-      if (reg) track("CompleteRegistration", { content_name: "account" });
+      if (reg) track("CompleteRegistration", { content_name: "account" }, { user: { name: body.name, email: body.email, phone: body.phone } });
       navStart();
       router.replace(next);
       router.refresh();
