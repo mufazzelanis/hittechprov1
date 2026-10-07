@@ -25,7 +25,7 @@ export async function POST(req) {
   if (user && (!b.admin || user.role === "ADMIN")) {
     const s = await getSettings();
     const origin = new URL(req.url).origin;
-    issuePasswordReset(user, { siteUrl: origin, siteName: s.siteName, resetPath: b.admin ? "/admin/reset-password" : "/reset-password" }).catch((e) =>
+    issuePasswordReset(user, { siteUrl: origin, s, resetPath: b.admin ? "/admin/reset-password" : "/reset-password" }).catch((e) =>
       console.error("[forgot-password] failed to send email:", e)
     );
   }

@@ -8,8 +8,7 @@ import { logOrderEvent } from "@/lib/orderEvents";
 import { getSettings } from "@/lib/settings";
 import { siteUrl } from "@/lib/seo";
 import { guard } from "@/lib/adminAuth";
-
-const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+import { emailLayout, emailButton, esc, MIST } from "@/lib/emailTemplate";
 
 // Saves the Payoneer payment-request link on an order and emails it to the buyer. The buyer also sees
 // it as a "Pay" button in their Client Area until the order is marked paid.
@@ -34,17 +33,17 @@ export async function POST(req, { params }) {
     const s = await getSettings();
     const amount = order.usdAmount ? `$${order.usdAmount.toFixed(2)}` : `৳${order.amount.toLocaleString()}`;
     const account = `${siteUrl(s)}/account`;
+    const body = `
+      <h1 style="margin:0 0 14px;font-size:21px;font-weight:800;">Complete your payment</h1>
+      <p style="margin:0 0 4px;">Hi ${esc(order.name)},</p>
+      <p style="margin:10px 0 0;color:${MIST};">Thanks for your order <b style="color:${"#1c1c28"}">#${order.number}</b> — ${esc(order.itemName)}.</p>
+      ${emailButton(`Pay ${amount} with Payoneer`, parsed.href)}
+      <p style="color:${MIST};font-size:13px;">You can pay by card, bank transfer or your Payoneer balance. As soon as your payment is confirmed, your order unlocks in your <a href="${esc(account)}" style="color:${MIST};font-weight:700;">Client Area</a>.</p>`;
     const r = await sendMail({
       to: order.email,
       subject: `Pay ${amount} for Order #${order.number} — ${s.siteName}`,
       text: `Hi ${order.name},\n\nThanks for your order (#${order.number}: ${order.itemName}).\n\nPay ${amount} securely with Payoneer (card, bank transfer or Payoneer balance):\n${parsed.href}\n\nAs soon as your payment is confirmed your order unlocks in your Client Area: ${account}\n\n— ${s.siteName}`,
-      html: `<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1c1c28">
-        <h2 style="margin:0 0 12px">Complete your payment</h2>
-        <p>Hi ${esc(order.name)},</p>
-        <p>Thanks for your order <b>#${order.number}</b> — ${esc(order.itemName)}.</p>
-        <p style="margin:24px 0"><a href="${esc(parsed.href)}" style="background:#E8352B;color:#fff;text-decoration:none;padding:13px 22px;border-radius:10px;font-weight:bold;display:inline-block">Pay ${esc(amount)} with Payoneer</a></p>
-        <p style="color:#555;font-size:14px">You can pay by card, bank transfer or your Payoneer balance. As soon as your payment is confirmed, your order unlocks in your <a href="${esc(account)}">Client Area</a>.</p>
-      </div>`,
+      html: emailLayout({ s, eyebrow: "Payment request", preheader: `Pay ${amount} to complete Order #${order.number}.`, bodyHtml: body }),
     }).catch(() => ({ sent: false }));
     emailed = !!r.sent;
   }
