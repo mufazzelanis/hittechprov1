@@ -11,7 +11,6 @@ export default function SmmApiKeyCard({ initial }) {
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(null); // { ok, text }
-  const dirty = key !== (initial || "");
 
   async function test(keyToTest) {
     const r = await fetch(`/api/admin/smm/balance?key=${encodeURIComponent(keyToTest)}`);
@@ -59,7 +58,7 @@ export default function SmmApiKeyCard({ initial }) {
             {show ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
         </div>
-        <button type="button" onClick={saveAndTest} disabled={busy || !key.trim() || !dirty} className="shrink-0 flex items-center gap-2 rounded-lg bg-brand hover:bg-brand-dark disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
+        <button type="button" onClick={saveAndTest} disabled={busy || !key.trim()} className="shrink-0 flex items-center gap-2 rounded-lg bg-brand hover:bg-brand-dark disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 transition-colors">
           {busy ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />} Save &amp; test
         </button>
       </div>
