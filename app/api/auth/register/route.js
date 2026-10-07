@@ -8,6 +8,8 @@ import { ensureRefCode } from "@/lib/affiliate";
 import { limited } from "@/lib/rateLimit";
 import { pushNotification } from "@/lib/notify";
 import { identifyVisitor } from "@/lib/visits";
+import { getSettings } from "@/lib/settings";
+import { sendWelcomeEmail } from "@/lib/transactionalEmails";
 
 export async function POST(req) {
   const tooMany = limited(req, "register", 8, 3600);
@@ -30,6 +32,7 @@ export async function POST(req) {
   await ensureRefCode(user);
   pushNotification({ type: "signup", title: "New account created", body: `${name} · ${email}`, href: "/admin/affiliates" }).catch(() => {});
   identifyVisitor(b.visitorId, { name, email, phone }).catch(() => {});
+  getSettings().then((s) => sendWelcomeEmail(user, s)).catch(() => {});
 
   const res = NextResponse.json({ ok: true });
   res.cookies.set(userCookieName(), signUserToken(user), { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30 });

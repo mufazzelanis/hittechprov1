@@ -79,7 +79,7 @@ All of these live in `.env` (never committed - see `.env.example` for the docume
 | `JWT_SECRET` | Long random string used to sign login sessions. Generate one with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`. Use a **different** value in production than in local dev. |
 | `ADMIN_EMAIL` | Email of the admin account created by `npm run seed` |
 | `ADMIN_PASSWORD` | Password of that seeded admin account - **change it from the admin panel after your first real login** |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Optional. Needed for "Forgot password" and order-delivery emails to actually send. Without these, reset links/delivery emails are only printed to the server console. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Optional - a fallback only. SMTP is normally set from **Admin → Settings → Email**, which takes effect immediately with no restart. Without either, every transactional email (welcome, order confirmation, password reset, delivery...) is only printed to the server console. |
 | `SMMIU_API_KEY` | Optional. Needed only for the SMM Panel feature (my.smmiu.com). |
 | `INDEXNOW_KEY` | Optional. Lets the site auto-notify Bing/Yandex when a page changes. Any random string. |
 
@@ -312,6 +312,8 @@ paid customer files stay exactly where they are.
 - [ ] Real payment numbers entered (Admin → Settings → Payments - they start as `01XXXXXXXXX` placeholders)
 - [ ] `Website address` in Admin → Settings → SEO set to the real `https://` domain
 - [ ] HTTPS working (AutoSSL on cPanel, or Certbot on a VPS)
+- [ ] Real SMTP details entered (Admin → Settings → Email) and verified with its "Send a test email"
+      button - without this, welcome/order/reset emails only print to the server console
 - [ ] A test order placed end-to-end and marked PAID, to confirm email/notification flow works
 - [ ] `/privacy`, `/terms`, `/refund` reviewed for your actual business
 - [ ] A backup plan for the MySQL database (cPanel → *Backup Wizard*, or a cron'd `mysqldump` on a VPS)

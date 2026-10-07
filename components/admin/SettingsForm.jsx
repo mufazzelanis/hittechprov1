@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Loader2, Check, Search, Store, Globe, CreditCard, MessageCircle, Users, ShieldCheck, X, Eye, EyeOff, RotateCcw,
   Plus, Trash2, ChevronUp, ChevronDown, Download, Upload, Sparkles, AlertCircle, Undo2, BadgeCheck, Radar, CheckCircle2,
+  Mail, Send,
 } from "lucide-react";
 import { ImageInput } from "./ResourceManager";
 import PasswordForm from "./PasswordForm";
@@ -16,7 +17,7 @@ import { parseOff } from "@/lib/payments";
 
 /* ------------------------------------------------------------------ schema */
 // A block is either a group of plain fields or a custom editor. Every key listed here is saved through /api/admin/settings.
-const TAB_ICONS = { general: Store, seo: Globe, payments: CreditCard, channels: MessageCircle, affiliate: Users, trust: BadgeCheck, security: ShieldCheck };
+const TAB_ICONS = { general: Store, seo: Globe, email: Mail, payments: CreditCard, channels: MessageCircle, affiliate: Users, trust: BadgeCheck, security: ShieldCheck };
 const TABS = SETTINGS_TABS.map((t) => ({ ...t, icon: TAB_ICONS[t.id] }));
 
 const fieldsOf = (b) => (b.fields || []).flatMap((f) => [f.key, f.toggle].filter(Boolean)).concat(b.master ? [b.master] : [], b.keys || []);
@@ -172,6 +173,103 @@ function FooterColumnsEditor({ v, set }) {
         </AnimatePresence>
         {cols.length === 0 && <p className="text-sm text-mist">No footer columns yet - the footer shows only the About and Contact Us blocks.</p>}
         <button type="button" onClick={addCol} disabled={cols.length >= maxCols} className="btn-ghost disabled:opacity-40"><Plus size={15} /> Add column{cols.length >= maxCols ? ` (max ${maxCols})` : ""}</button>
+      </div>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- custom: email */
+function SmtpEditor({ v, set }) {
+  const [show, setShow] = useState(false);
+  const [testTo, setTestTo] = useState(v.contactEmail || "");
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const configured = !!(v.smtpHost && v.smtpUser && v.smtpPass);
+
+  async function sendTest() {
+    if (!testTo.trim() || testing) return;
+    setTesting(true); setTestResult(null);
+    try {
+      const r = await fetch("/api/admin/settings/test-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: testTo.trim(), smtpHost: v.smtpHost, smtpPort: v.smtpPort, smtpUser: v.smtpUser, smtpPass: v.smtpPass, smtpFromName: v.smtpFromName, smtpFromEmail: v.smtpFromEmail }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setTestResult({ ok: r.ok, text: r.ok ? `Sent! Check ${testTo.trim()}.` : j.error || "Could not send - check the details above." });
+    } catch {
+      setTestResult({ ok: false, text: "Network error - could not reach the server." });
+    }
+    setTesting(false);
+  }
+
+  return (
+    <Card title="Email delivery (SMTP)" hint="Fill this in with a real mailbox - your domain's own email account (cPanel -> Email Accounts, e.g. no-reply@hittechpro.net) or a transactional provider (SendGrid, Mailgun, Brevo...). Takes effect immediately, no restart needed. Without this, password resets, order confirmations and welcome emails cannot be delivered - they only appear in the server log.">
+      <div className="flex items-center gap-2 mb-4">
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${configured ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${configured ? "bg-emerald-400" : "bg-amber-400"}`} />
+          {configured ? "Configured" : "Not configured yet"}
+        </span>
+      </div>
+      <div className="grid sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-mist mb-1.5">SMTP host</label>
+          <input className="input" placeholder="mail.hittechpro.net" value={v.smtpHost || ""} onChange={(e) => set("smtpHost", e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-xs text-mist mb-1.5">Port</label>
+          <input type="number" min={0} className="input" placeholder="587" value={v.smtpPort || ""} onChange={(e) => set("smtpPort", e.target.value)} />
+          <p className="text-[11px] text-mist mt-1">465 = SSL, 587 = STARTTLS (most common)</p>
+        </div>
+        <div>
+          <label className="block text-xs text-mist mb-1.5">Username</label>
+          <input className="input" placeholder="no-reply@hittechpro.net" value={v.smtpUser || ""} onChange={(e) => set("smtpUser", e.target.value)} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-mist mb-1.5">Password</label>
+          <div className="relative">
+            <input type={show ? "text" : "password"} autoComplete="off" className="input pr-10" value={v.smtpPass || ""} onChange={(e) => set("smtpPass", e.target.value)} />
+            <button type="button" onClick={() => setShow((s) => !s)} aria-label={show ? "Hide" : "Show"} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-mist hover:text-fg">{show ? <EyeOff size={15} /> : <Eye size={15} />}</button>
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs text-mist mb-1.5">"From" name</label>
+          <input className="input" placeholder="HiT Tech Pro" value={v.smtpFromName || ""} onChange={(e) => set("smtpFromName", e.target.value)} />
+        </div>
+        <div>
+          <label className="block text-xs text-mist mb-1.5">"From" email</label>
+          <input className="input" placeholder="no-reply@hittechpro.net" value={v.smtpFromEmail || ""} onChange={(e) => set("smtpFromEmail", e.target.value)} />
+        </div>
+      </div>
+
+      <div className="mt-5 pt-5 border-t border-line">
+        <p className="text-xs font-semibold uppercase tracking-wide text-mist mb-2">Send a test email</p>
+        <p className="text-[11px] text-mist mb-3">Tests the details above right now, even before you press Save.</p>
+        <div className="flex gap-2">
+          <input className="input flex-1" placeholder="you@domain.com" value={testTo} onChange={(e) => setTestTo(e.target.value)} />
+          <button type="button" onClick={sendTest} disabled={testing || !testTo.trim()} className="btn-ghost shrink-0">{testing ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Send test</button>
+        </div>
+        {testResult && <p className={`text-xs mt-2 ${testResult.ok ? "text-emerald-400" : "text-red-400"}`}>{testResult.text}</p>}
+      </div>
+    </Card>
+  );
+}
+
+function MailTogglesEditor({ v, set }) {
+  const items = [
+    ["mailWelcomeOn", "Welcome email", "Sent the moment someone creates an account (signup, or checking out as a new customer)."],
+    ["mailOrderConfirmOn", "Order confirmation", "Sent to the buyer the moment an order is placed, with the order number, items and amount."],
+    ["mailAdminOrderOn", "Notify me of new orders", "Also emails a copy of every new order to your own contact email, in addition to the admin panel notification."],
+  ];
+  return (
+    <Card title="Automatic emails" hint="Password reset/recovery, the Payoneer pay link and delivery notices always send when triggered - they're not optional, the customer asked for them directly. These three are extra and can be switched off.">
+      <div className="space-y-3">
+        {items.map(([key, label, desc]) => (
+          <div key={key} className="flex items-center justify-between gap-4 rounded-xl border border-line bg-panel2/30 p-3.5">
+            <span className="min-w-0"><span className="block text-sm font-medium">{label}</span><span className="block text-xs text-mist mt-0.5">{desc}</span></span>
+            <Switch on={v[key] !== "false"} onChange={(x) => set(key, x ? "true" : "false")} label={label} />
+          </div>
+        ))}
       </div>
     </Card>
   );
@@ -349,6 +447,7 @@ function Checklist({ v, go }) {
     ["Real payment numbers added", !!v.paymentOptions && !/X{4}/.test(v.paymentOptions), "payments"],
     ["WhatsApp or Telegram added", !!(v.whatsapp || v.telegram), "channels"],
     ["Real phone number added", !!v.phone && !/X{4}/.test(v.phone), "general"],
+    ["Email (SMTP) connected", !!(v.smtpHost && v.smtpUser && v.smtpPass), "email"],
   ];
   const done = items.filter((i) => i[1]).length;
   const [open, setOpen] = useState(false);
@@ -453,7 +552,7 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
   const term = q.trim().toLowerCase();
   const matches = (f) => `${f.label} ${f.key} ${f.hintText || ""}`.toLowerCase().includes(term);
   const results = term ? TABS.flatMap((t) => t.blocks.flatMap((b) => (b.fields || []).filter(matches).map((f) => ({ t, b, f })))) : [];
-  const customHits = term ? TABS.flatMap((t) => t.blocks.filter((b) => b.custom && `${b.custom} ${t.label} payment coupon logo password footer link column menu navigation`.includes(term)).map((b) => t)) : [];
+  const customHits = term ? TABS.flatMap((t) => t.blocks.filter((b) => b.custom && `${b.custom} ${t.label} payment coupon logo password footer link column menu navigation email smtp mail welcome notification`.includes(term)).map((b) => t)) : [];
 
   const cur = TABS.find((t) => t.id === tab);
   const master = (b) => ({ on: v[b.master] === "true", onMaster: (x) => set(b.master, x ? "true" : "false") });
@@ -462,6 +561,8 @@ export default function SettingsForm({ initial, defaults = {}, initialTab = "", 
     if (b.custom === "payments") return <PaymentsEditor key={"p" + rev} v={v} set={set} />;
     if (b.custom === "coupons") return <CouponsEditor key={"c" + rev} v={v} set={set} />;
     if (b.custom === "footerColumns") return <FooterColumnsEditor key={"fc" + rev} v={v} set={set} />;
+    if (b.custom === "smtp") return <SmtpEditor key={"smtp" + rev} v={v} set={set} />;
+    if (b.custom === "mailToggles") return <MailTogglesEditor key={"mt" + rev} v={v} set={set} />;
     if (b.custom === "security")
       return (
         <div key="sec" className="space-y-5">

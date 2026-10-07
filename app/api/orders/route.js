@@ -17,6 +17,7 @@ import { checkTxn, methodKind } from "@/lib/txn";
 import { walletBalance } from "@/lib/wallet";
 import { logOrderEvent } from "@/lib/orderEvents";
 import { PAYONEER_METHOD, usdOf } from "@/lib/catalog";
+import { sendWelcomeEmail, sendOrderConfirmation, sendAdminOrderNotice } from "@/lib/transactionalEmails";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,7 @@ export async function POST(req) {
     user = await prisma.user.create({ data: { name, email, phone, password: await bcrypt.hash(password, 10) } });
     await ensureRefCode(user);
     newToken = signUserToken(user);
+    sendWelcomeEmail(user, s).catch(() => {});
   }
 
   const wanted = Array.isArray(b.items) && b.items.length ? b.items : [{ type: b.itemType, id: b.itemId }];
@@ -174,6 +176,8 @@ export async function POST(req) {
     href: `/admin/orders?q=${order.number}`,
   }).catch(() => {});
   identifyVisitor(b.visitorId, { name, email, phone }).catch(() => {});
+  sendOrderConfirmation(order, s).catch(() => {});
+  sendAdminOrderNotice(order, s).catch(() => {});
 
   const res = NextResponse.json({ ok: true, number: order.number, amount, usdAmount: order.usdAmount, ...(fbNow ? { fb: { eventId: `purchase-${order.id}` } } : {}) });
   if (newToken) {
