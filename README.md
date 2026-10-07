@@ -80,7 +80,7 @@ All of these live in `.env` (never committed - see `.env.example` for the docume
 | `ADMIN_EMAIL` | Email of the admin account created by `npm run seed` |
 | `ADMIN_PASSWORD` | Password of that seeded admin account - **change it from the admin panel after your first real login** |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM` | Optional - a fallback only. SMTP is normally set from **Admin → Settings → Email**, which takes effect immediately with no restart. Without either, every transactional email (welcome, order confirmation, password reset, delivery...) is only printed to the server console. |
-| `SMMIU_API_KEY` | Optional. Needed only for the SMM Panel feature (my.smmiu.com). |
+| `SMMIU_API_KEY` | Optional - a fallback only. Normally set from **Admin → SMM Services**, which takes effect immediately with no restart. Needed only for the SMM Panel feature (my.smmiu.com). |
 | `INDEXNOW_KEY` | Optional. Lets the site auto-notify Bing/Yandex when a page changes. Any random string. |
 
 See `.env.example` for the full, commented template - copy it to `.env` and fill in real values.
